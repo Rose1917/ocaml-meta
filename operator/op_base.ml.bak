@@ -1,0 +1,11 @@
+include Owl_dense_ndarray_d
+let reci_procal x =
+  div_scalar x 1.
+ 
+let zeros_like tensor =  
+  let s = shape tensor in 
+  (zeros s)
+let ones_like tensor =
+  let s = shape tensor in 
+  (ones s)
+  
