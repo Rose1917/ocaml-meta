@@ -1,3 +1,3 @@
-## A DEEPLEARNING FRAMEWORK BASED ON THE OWL AND META-OPERATORS(IN PROGRESS)
+## a deep learning framework based on the owl and meta-operator
 #### how to start 
 make 
