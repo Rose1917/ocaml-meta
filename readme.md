@@ -2,5 +2,5 @@
 #### how to start 
 make 
 #### copyright declaration
-* the matrix operation with c is developed by huxin
-* re-implement the meta-operator by jittor of qinghua
+* the matrix operation acceleration with c and cuda is developed by huxin of NUAA 
+* re-implement the meta-operator by jittor of Tsinghua university
