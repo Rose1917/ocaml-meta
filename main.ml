@@ -1,5 +1,7 @@
-open Op.Op_ad 
+(* define the boost type. by default it will not boost*)
+open Op.Op_ad
 let _ = 
+  set_boost DEFAULT;
   (*based on the auto diff module,we can easily train a network*)
   (*a network is nothing more than a function from input and various arguments to output*)
 
@@ -48,3 +50,4 @@ let _ =
     let loss = get_ele z [|0|] in
     Printf.printf "iteration %d,loss %f\n" it loss 
   done 
+ 

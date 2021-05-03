@@ -1,3 +1,3 @@
 (library 
 	(name op)
-	(libraries owl var))
+	(libraries owl var boost))

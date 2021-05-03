@@ -94,9 +94,25 @@ let print x =
   print x
 
 open Owl_dense_matrix_d 
+
+
+type boost_type = 
+  |AVX_BOOST
+  |FMA_BOOST
+  |OMP_BOOST
+  |DEFAULT
+external c_mat_mul : (float,Bigarray.float64_elt,Bigarray.c_layout)Bigarray.Genarray.t ->(float,Bigarray.float64_elt,Bigarray.c_layout)Bigarray.Genarray.t -> boost_type -> (float,Bigarray.float64_elt,Bigarray.c_layout)Bigarray.Genarray.t = "c_mat_mul"
+
 (*matrix operation*)
-let mat_dot x y = 
-  dot x y
+let boost = ref DEFAULT
+let set_boost t =
+  boost:= t
+
+let mat_dot  x y  = 
+  match !boost with
+  |DEFAULT -> dot x y
+  |_ -> c_mat_mul x y !boost
+
 let transpose x =
   transpose x 
 

@@ -198,3 +198,6 @@ let rec update xs step =
 
 let train z step = 
   update [((Op_base.ones_like !(deri z)),z)] step
+
+let set_boost x = 
+  set_boost x

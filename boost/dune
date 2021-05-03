@@ -1,0 +1,8 @@
+(library 
+ (name		boost)
+ (foreign_stubs
+   (language c)
+   (names main boost)
+   (flags -mfma)
+ )
+)
