@@ -1,7 +1,7 @@
 (* define the boost type. by default it will not boost*)
-open Op.Op_ad
+open Base.Op_base
 let _ = 
-
+(*
   (*set the boost *)
   set_boost DEFAULT;
 
@@ -54,4 +54,13 @@ let _ =
     let loss = get_ele z [|0|] in
     Printf.printf "iteration %d,loss %f\n" it loss 
   done 
- 
+*) 
+  let x = sequential [|2;2;2|] in
+  let f index = [|index.(0);index.(1)|] in
+  let y = reindex_reduce x [|2;2|] ~map_func:f in
+
+  print ~prefix:"x" x ;
+  print ~prefix:"y" y;
+    
+  
+

@@ -1,5 +1,6 @@
 open Owl_dense_ndarray_d
 
+
 (*defination of the old fasion reindex *)
 let reindex_base input output_shape ~map_func = 
   let f = function input_index -> get input (map_func input_index) in
@@ -15,19 +16,19 @@ let reindex_reduce_base input output_shape ~map_func =
 init_nd output_shape f
 
 (*defination of unary element-wise meta-operator*)
-let element_wise_unary_base input ~map_func =
+let element_wise_unary input ~map_func =
     let output_shape = shape input in
     let f = function index -> map_func (get input index) in
 init_nd output_shape f;;
 
 (*defination of binary element-wise meta-operator*)
-let element_wise_binary_base input_1 input_2 ~map_func = 
+let element_wise_binary input_1 input_2 ~map_func = 
     let output_shape = shape input_1 in
     let f = function index -> map_func (get input_1 index) (get input_2 index) in
 init_nd output_shape f;;
 
 (*defination of ternary element-wise meta-operator*)
-let element_wise_ternary_base input_1 input_2 input_3 ~map_func = 
+let element_wise_ternary input_1 input_2 input_3 ~map_func = 
     let output_shape = shape input_1 in
     let f = function index -> map_func (get input_1 index) (get input_2 index) (get input_3 index) in
 init_nd output_shape f;;
