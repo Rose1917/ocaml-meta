@@ -114,23 +114,24 @@ let reindex_reduce input output_shape ~map_func =
   Callback.register "reindex_reduce_map_func" map_func';
   c_reindex_reduce input output_shape 
 
+
+external c_element_wise_unary : base_t -> base_t = "c_element_wise_unary"
 (*defination of unary element-wise meta-operator*)
 let element_wise_unary input ~map_func =
-    let output_shape = shape input in
-    let f = function index -> map_func (get input index) in
-init_nd output_shape f;;
+  Callback.register "element_wise_unary_map_func" map_func;
+  c_element_wise_unary input
 
+external c_element_wise_binary : base_t -> base_t -> base_t = "c_element_wise_binary"
 (*defination of binary element-wise meta-operator*)
 let element_wise_binary input_1 input_2 ~map_func = 
-    let output_shape = shape input_1 in
-    let f = function index -> map_func (get input_1 index) (get input_2 index) in
-init_nd output_shape f;;
+  Callback.register "element_wise_binary_map_func" map_func;
+  c_element_wise_binary input_1 input_2
 
+external c_element_wise_ternary : base_t -> base_t -> base_t -> base_t = "c_element_wise_ternary"
 (*defination of ternary element-wise meta-operator*)
 let element_wise_ternary input_1 input_2 input_3 ~map_func = 
-    let output_shape = shape input_1 in
-    let f = function index -> map_func (get input_1 index) (get input_2 index) (get input_3 index) in
-init_nd output_shape f;;
+  Callback.register "element_wise_ternary_map_func" map_func;
+  c_element_wise_ternary input_1 input_2 input_3
 
 (*defination of print *)
 let print_vec x =

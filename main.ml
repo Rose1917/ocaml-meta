@@ -55,12 +55,16 @@ let _ =
     Printf.printf "iteration %d,loss %f\n" it loss 
   done 
 *) 
-  let x = sequential [|2;2;2|] in
-  let f index = [|index.(0);index.(1)|] in
-  let y = reindex_reduce x [|2;2|] ~map_func:f in
+  let x = sequential [|2;2|] in
+  let y = sequential [|2;2|] in
+  let z = sequential [|2;2|] in
+  let f x y z= if ( x +. y) > z then 1.  else y in
+  let w = element_wise_ternary x y z ~map_func:f in
 
   print ~prefix:"x" x ;
   print ~prefix:"y" y;
+  print ~prefix:"z" z;
+  print ~prefix:"z" w;
     
   
 

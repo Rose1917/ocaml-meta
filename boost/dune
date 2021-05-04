@@ -3,6 +3,6 @@
  (foreign_stubs
    (language c)
    (names mat_main boost meta_main)
-   (flags -mfma)
+   (flags -mfma -w)
  )
 )
