@@ -31,6 +31,17 @@ let numel x =
 let flatten x = 
   reshape x [|(numel x);|]
 
+let copy x = 
+  let s = shape x in
+  let res = Genarray.create float64 c_layout s in
+  Genarray.blit x res;
+  res
+let reverse x = 
+  let l = Array.to_list x in
+  let ll = List.rev l in
+  Array.of_list ll
+
+
 let cal_stride shape = 
   let l = Array.length shape in
   let s = Array.copy shape in
@@ -100,7 +111,9 @@ let reindex input output_shape ~map_func =
     index_nd_1d nd_res (shape input)
   in
   Callback.register "reindex_map_func" map_func';
-  c_reindex input output_shape 
+  Owl.Dense.Ndarray.Generic.print input; 
+  let res = c_reindex input output_shape in
+  copy res;
 
 
 external c_reindex_reduce : base_t -> int array -> base_t = "c_reindex_reduce" 
@@ -112,26 +125,32 @@ let reindex_reduce input output_shape ~map_func =
     index_nd_1d nd_res output_shape
   in
   Callback.register "reindex_reduce_map_func" map_func';
-  c_reindex_reduce input output_shape 
+  let res = c_reindex_reduce input output_shape in
+  copy res
 
 
 external c_element_wise_unary : base_t -> base_t = "c_element_wise_unary"
 (*defination of unary element-wise meta-operator*)
 let element_wise_unary input ~map_func =
   Callback.register "element_wise_unary_map_func" map_func;
-  c_element_wise_unary input
+  let res = c_element_wise_unary input in
+  copy res
 
 external c_element_wise_binary : base_t -> base_t -> base_t = "c_element_wise_binary"
 (*defination of binary element-wise meta-operator*)
 let element_wise_binary input_1 input_2 ~map_func = 
   Callback.register "element_wise_binary_map_func" map_func;
-  c_element_wise_binary input_1 input_2
+  let res = c_element_wise_binary input_1 input_2 in
+  copy res
 
 external c_element_wise_ternary : base_t -> base_t -> base_t -> base_t = "c_element_wise_ternary"
 (*defination of ternary element-wise meta-operator*)
 let element_wise_ternary input_1 input_2 input_3 ~map_func = 
   Callback.register "element_wise_ternary_map_func" map_func;
-  c_element_wise_ternary input_1 input_2 input_3
+  let res = c_element_wise_ternary input_1 input_2 input_3 in
+  copy res
+
+
 
 (*defination of print *)
 let print_vec x =
@@ -178,3 +197,37 @@ let print ?(prefix = "") x =
   |2 -> print_mat x
   |3 -> print_cube x
   |_ -> raise (Shape_error "print:the shape is not supported")
+
+
+
+(*defination of the old fasion reindex *)
+let reindex_caml input output_shape ~map_func = 
+  let f = function input_index -> get input (map_func input_index) in
+  init_nd output_shape f
+
+(*defination of the old fasion reindex-reduce *)
+let reindex_reduce_caml input output_shape ~map_func = 
+    let get_aux_tensor i = 
+        let aux_fun aux_index e = let new_index = map_func aux_index in 
+            if Stdlib.(=) new_index  i then e else 0.   in
+        mapi_nd aux_fun input in
+    let f = function input_index -> sum' (get_aux_tensor input_index) in
+init_nd output_shape f
+
+(*defination of unary element-wise meta-operator*)
+let element_wise_unary_caml input ~map_func =
+    let output_shape = shape input in
+    let f = function index -> map_func (get input index) in
+init_nd output_shape f;;
+
+(*defination of binary element-wise meta-operator*)
+let element_wise_binary_caml input_1 input_2 ~map_func = 
+    let output_shape = shape input_1 in
+    let f = function index -> map_func (get input_1 index) (get input_2 index) in
+init_nd output_shape f;;
+
+(*defination of ternary element-wise meta-operator*)
+let element_wise_ternary_caml input_1 input_2 input_3 ~map_func = 
+    let output_shape = shape input_1 in
+    let f = function index -> map_func (get input_1 index) (get input_2 index) (get input_3 index) in
+init_nd output_shape f;;

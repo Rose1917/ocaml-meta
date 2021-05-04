@@ -18,9 +18,10 @@
 #include "boost.h"
 #include "util.h"
 #define DEBUG
-
+#define BUFFER_SIZE 100000
 #define VAL_INT_ARR(array,i) Int_val(Field(array,i))
 #define LEN_ARR(array) Wosize_val(array)
+
 
 static int flag_num = 0;
 static void print_flat (){
@@ -28,12 +29,13 @@ static void print_flat (){
 }
 
 
+double res [BUFFER_SIZE];
 //matrix operation
 CAMLprim value 
 c_reindex (value src_t, value out_shape){
 	
 	//avoid the ocaml grabage to collect the shape value
-	CAMLparam1(out_shape);
+	//CAMLparam1(out_shape);
 
 	//obtain the data from value type
 	double* src_val = Caml_ba_data_val(src_t);
@@ -49,15 +51,29 @@ c_reindex (value src_t, value out_shape){
 		res_numele *= dims[i];
 	}
 
+	//traverse the source 
+	for ( int i = 0; i < res_numele ; i++)
+		printf (" iteration %d: the source val %.0f\n",i,src_val[i]);
+	
+
 	//prepare for the result buffer
-	double *res = (double *) malloc( sizeof (double *) * res_numele); 
+	//double *res = (double *) malloc( sizeof (double *) * res_numele); 
+	
+	/*
 	if (res == NULL){
 		printf ("c_reindex:can not access the memory result need");
 		exit (MEMORY_ALLOCATION_FAILED);
 	}
+	*/
+
 	
 	//init the result buffer
-	memset(res,0,sizeof(double) * res_numele);
+	memset(res,0,sizeof(res));
+	
+
+	//traverse the source 
+	for ( int i = 0; i < res_numele ; i++)
+		printf (" iteration %d: the source val %.0f\n",i,src_val[i]);
 	
 	//cache the map function
 	static value* map_func = NULL;
@@ -66,10 +82,13 @@ c_reindex (value src_t, value out_shape){
 
 	//set the res buffer
 	for (int i = 0 ; i < res_numele ; i++){
-		res[i] = src_val[Int_val(caml_callback(*map_func,Val_int(i)))];
-		printf("iteration %d:%d -> %d\n",i,i,Int_val(caml_callback(*map_func,Val_int(i))));
+		int src_index = Int_val(caml_callback(*map_func,Val_int(i)));
+		res[i] = src_val[src_index];
+		printf ("the res %d from the src %d : %.0f\n",i,src_index,src_val[i]);
         }	
 
+	//free(Caml_ba_data_val(src_t));
+	
 	//call the function and if it works properly, we need to pack it to a bigarray so we can send it back
 	return caml_ba_alloc(CAML_BA_FLOAT64|CAML_BA_C_LAYOUT,len,res,dims);
 }
@@ -101,15 +120,9 @@ c_reindex_reduce (value src_t, value out_shape){
 		res_numele *= dims[i];
 	}
 
-	//prepare for the result buffer
-	double *res = (double *) malloc( sizeof (double *) * res_numele); 
-	if (res == NULL){
-		printf ("c_reindex:can not access the memory result need");
-		exit (MEMORY_ALLOCATION_FAILED);
-	}
 	
 	//init the result buffer
-	memset(res,0,sizeof(double) * res_numele);
+	memset(res,0,sizeof(res));
 	
 	//cache the map function
 	static value* map_func = NULL;
@@ -146,15 +159,14 @@ c_element_wise_unary (value src_t){
 	}
 
 	int res_numele = src_numele;
-	double *res = (double*) malloc (sizeof(double) * res_numele);
 
-	print_flat();
 	//cache the map function
 	static value* map_func = NULL;
 	if(map_func == NULL)
 		map_func = caml_named_value("element_wise_unary_map_func");
 
 	//set the res buffer
+	memset(res,0,sizeof(res));
 	for (int i = 0 ; i < res_numele ; i++){
 		CAMLlocal1(src_ele);
 		src_ele = caml_copy_double(src_val[i]);
@@ -200,8 +212,7 @@ c_element_wise_binary (value src_t_1, value src_t_2){
 	}
 	
 	
-
-	double *res = (double*) malloc (sizeof(double) * res_numele);
+	
 
 	//cache the map function
 	static value* map_func = NULL;
@@ -209,6 +220,7 @@ c_element_wise_binary (value src_t_1, value src_t_2){
 		map_func = caml_named_value("element_wise_binary_map_func");
 
 	//set the res buffer
+	memset(res,0,sizeof(res));
 	for (int i = 0 ; i < res_numele ; i++){
 		CAMLlocal2(src_ele_1,src_ele_2);
 		src_ele_1 = caml_copy_double(src_val_1[i]);
@@ -258,7 +270,7 @@ c_element_wise_ternary (value src_t_1, value src_t_2, value src_t_3){
 	
 	
 
-	double *res = (double*) malloc (sizeof(double) * res_numele);
+	memset(res,0,sizeof(res));
 
 	//cache the map function
 	static value* map_func = NULL;

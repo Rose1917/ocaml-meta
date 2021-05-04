@@ -56,15 +56,16 @@ let _ =
   done 
 *) 
   let x = sequential [|2;2|] in
-  let y = sequential [|2;2|] in
-  let z = sequential [|2;2|] in
-  let f x y z= if ( x +. y) > z then 1.  else y in
-  let w = element_wise_ternary x y z ~map_func:f in
+  let f index = [|index.(1);index.(0)|] in
+  let trans = reindex ~map_func:f in
+  let y = ref (trans x (reverse (shape x ))) in
+  for i = 0 to 1000 do
+    Printf.printf "base iteration %d\n" i;
+    y := trans !y (reverse (shape !y));
+  done;
 
   print ~prefix:"x" x ;
-  print ~prefix:"y" y;
-  print ~prefix:"z" z;
-  print ~prefix:"z" w;
+  print ~prefix:"y" !y;
     
   
 
