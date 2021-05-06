@@ -1,7 +1,7 @@
 (* define the boost type. by default it will not boost*)
-open Base.Op_ad
-
+open Base.Op_base
 let _ = 
+(*
   (*set the boost *)
   set_boost DEFAULT;
 
@@ -40,6 +40,7 @@ let _ =
     print b2;
     print z;
     *)
+
     train z step;
 
     (*
@@ -51,6 +52,19 @@ let _ =
     print z;
     *)
     let loss = get_ele z [|0|] in
-    Printf.printf "iteration %d,loss %f\n" it loss
+    Printf.printf "iteration %d,loss %f\n" it loss 
   done 
+*) 
+  let x = sequential [|5;5|] in
+  let f index = [|index.(1);index.(0)|] in
+  let trans = reindex_caml ~map_func:f in
+  let y = ref (trans x (reverse (shape x ))) in
+  for _ = 0 to 1000000 do
+    y := trans !y (reverse (shape !y));
+  done;
+
+  print ~prefix:"x" x ;
+  print ~prefix:"y" !y;
+    
+  
 

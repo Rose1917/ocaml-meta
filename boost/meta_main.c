@@ -37,6 +37,7 @@ c_reindex (value src_t, value out_shape){
 	//avoid the ocaml grabage to collect the shape value
 	//CAMLparam1(out_shape);
 
+	//printf("c_reindex: c boost reindex\n");
 	//obtain the data from value type
 	double* src_val = Caml_ba_data_val(src_t);
 
@@ -51,29 +52,13 @@ c_reindex (value src_t, value out_shape){
 		res_numele *= dims[i];
 	}
 
-	//traverse the source 
-	for ( int i = 0; i < res_numele ; i++)
-		printf (" iteration %d: the source val %.0f\n",i,src_val[i]);
 	
-
-	//prepare for the result buffer
-	//double *res = (double *) malloc( sizeof (double *) * res_numele); 
-	
-	/*
-	if (res == NULL){
-		printf ("c_reindex:can not access the memory result need");
-		exit (MEMORY_ALLOCATION_FAILED);
-	}
-	*/
 
 	
 	//init the result buffer
-	memset(res,0,sizeof(res));
+	//memset(res,0,sizeof(res));
 	
 
-	//traverse the source 
-	for ( int i = 0; i < res_numele ; i++)
-		printf (" iteration %d: the source val %.0f\n",i,src_val[i]);
 	
 	//cache the map function
 	static value* map_func = NULL;
@@ -84,10 +69,9 @@ c_reindex (value src_t, value out_shape){
 	for (int i = 0 ; i < res_numele ; i++){
 		int src_index = Int_val(caml_callback(*map_func,Val_int(i)));
 		res[i] = src_val[src_index];
-		printf ("the res %d from the src %d : %.0f\n",i,src_index,src_val[i]);
         }	
+	
 
-	//free(Caml_ba_data_val(src_t));
 	
 	//call the function and if it works properly, we need to pack it to a bigarray so we can send it back
 	return caml_ba_alloc(CAML_BA_FLOAT64|CAML_BA_C_LAYOUT,len,res,dims);
@@ -97,7 +81,7 @@ CAMLprim value
 c_reindex_reduce (value src_t, value out_shape){
 	
 	//avoid the ocaml grabage to collect the shape value
-	CAMLparam1(out_shape);
+	//CAMLparam1(out_shape);
 
 	//obtain the data and property pointer from value type
 	double* src_val = Caml_ba_data_val(src_t);
@@ -122,7 +106,7 @@ c_reindex_reduce (value src_t, value out_shape){
 
 	
 	//init the result buffer
-	memset(res,0,sizeof(res));
+	memset(res,0,sizeof(double)*res_numele);
 	
 	//cache the map function
 	static value* map_func = NULL;
@@ -142,8 +126,8 @@ c_reindex_reduce (value src_t, value out_shape){
 CAMLprim value 
 c_element_wise_unary (value src_t){
 	
-	print_flat();
-	CAMLparam1(src_t);
+	//print_flat();
+	CAMLparam0();
 	//obtain the data and property pointer from value type
 	
 	double* src_val = Caml_ba_data_val(src_t);
@@ -166,27 +150,28 @@ c_element_wise_unary (value src_t){
 		map_func = caml_named_value("element_wise_unary_map_func");
 
 	//set the res buffer
-	memset(res,0,sizeof(res));
+	//memset(res,0,sizeof(res));
+	
 	for (int i = 0 ; i < res_numele ; i++){
-		CAMLlocal1(src_ele);
-		src_ele = caml_copy_double(src_val[i]);
-		double tmp = Double_val(caml_callback(*map_func,src_ele));
+		double tmp = Double_val(caml_callback(*map_func,caml_copy_double(src_val[i])));
 		res[i]     = tmp;
 	}
-        print_flat();	
+        //print_flat();	
 	//call the function and if it works properly, we need to pack it to a bigarray so we can send it back
 	return caml_ba_alloc(CAML_BA_FLOAT64|CAML_BA_C_LAYOUT,src_dim,res,dims);
 }
 CAMLprim value 
 c_element_wise_binary (value src_t_1, value src_t_2){
 	
-	CAMLparam2(src_t_1,src_t_2);
+	CAMLparam0();
 	//obtain the data and property pointer from value type
 	
 	double* src_val_1 = Caml_ba_data_val(src_t_1);
 	double* src_val_2 = Caml_ba_data_val(src_t_2);
 	struct caml_ba_array* src_pro_1 = Caml_ba_array_val(src_t_1);
 	struct caml_ba_array* src_pro_2 = Caml_ba_array_val(src_t_2);
+
+	//print_flat();
 	
 	//calculate the src element_number and dimension
 	int src_dim_1 = src_pro_1 -> num_dims;
@@ -213,6 +198,7 @@ c_element_wise_binary (value src_t_1, value src_t_2){
 	
 	
 	
+	//print_flat();
 
 	//cache the map function
 	static value* map_func = NULL;
@@ -220,21 +206,19 @@ c_element_wise_binary (value src_t_1, value src_t_2){
 		map_func = caml_named_value("element_wise_binary_map_func");
 
 	//set the res buffer
-	memset(res,0,sizeof(res));
 	for (int i = 0 ; i < res_numele ; i++){
-		CAMLlocal2(src_ele_1,src_ele_2);
-		src_ele_1 = caml_copy_double(src_val_1[i]);
-		src_ele_2 = caml_copy_double(src_val_2[i]);
-		double tmp = Double_val(caml_callback2(*map_func,src_ele_1,src_ele_2));
+		double tmp = Double_val(caml_callback2(*map_func,caml_copy_double(src_val_1[i]),caml_copy_double(src_val_2[i])));
 		res[i]     = tmp;
 	}
+	//print_flat();
+
 	//call the function and if it works properly, we need to pack it to a bigarray so we can send it back
 	return caml_ba_alloc(CAML_BA_FLOAT64|CAML_BA_C_LAYOUT,src_dim_1,res,dims);
 }
 CAMLprim value 
 c_element_wise_ternary (value src_t_1, value src_t_2, value src_t_3){
 	
-	CAMLparam3(src_t_1,src_t_2,src_t_3);
+	CAMLparam0();
 	//obtain the data and property pointer from value type
 	
 	double* src_val_1 = Caml_ba_data_val(src_t_1);
@@ -270,7 +254,7 @@ c_element_wise_ternary (value src_t_1, value src_t_2, value src_t_3){
 	
 	
 
-	memset(res,0,sizeof(res));
+        //memset(res,0,sizeof(res));
 
 	//cache the map function
 	static value* map_func = NULL;
@@ -279,12 +263,7 @@ c_element_wise_ternary (value src_t_1, value src_t_2, value src_t_3){
 
 	//set the res buffer
 	for (int i = 0 ; i < res_numele ; i++){
-		CAMLlocal3(src_ele_1,src_ele_2,src_ele_3);
-		src_ele_1 = caml_copy_double(src_val_1[i]);
-		src_ele_2 = caml_copy_double(src_val_2[i]);
-		src_ele_3 = caml_copy_double(src_val_3[i]);
-
-		double tmp = Double_val(caml_callback3(*map_func,src_ele_1,src_ele_2,src_ele_3));
+		double tmp = Double_val(caml_callback3(*map_func,caml_copy_double(src_val_1[i]),caml_copy_double(src_val_2[i]),caml_copy_double(src_val_3[i])));
 		res[i]     = tmp;
 	}
 	//call the function and if it works properly, we need to pack it to a bigarray so we can send it back

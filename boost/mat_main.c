@@ -8,10 +8,13 @@
 #include <string.h>
 #include "common.h"
 #include "boost.h"
-#define DEBUG
+
+#define BUFFER_SIZE 100000
+//#define DEBUG
 
 
 
+double res[100000];
 
 //matrix operation
 CAMLprim value 
@@ -59,14 +62,9 @@ c_mat_mul (value x,value y, value z){
 	long  res_c = y_c;
 
 	//prepare for the result buffer
-	double *res = (double *) malloc( sizeof (double *) * res_r * res_c); 
-	if (res == NULL){
-		printf ("c_mat_mul:can not access the memory result need");
-		exit (MEMORY_ALLOCATION_FAILED);
-	}
 	
 	//init the matrix c
-	memset(res,0,sizeof(double) * res_c * res_c);
+	//memset(res,0,sizeof(double) * res_c * res_c);
 	
 
 	//obtain the boost type from the argument

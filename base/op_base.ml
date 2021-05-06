@@ -3,6 +3,9 @@ open Bigarray
 exception Index_out_of_bound of string
 exception Shape_error of string
 
+(* the creation operator*)
+ 
+
 (*this file implement the basic ndarray and the function of it which is like numpy*)
 
 (*define the basic type*)
@@ -33,9 +36,9 @@ let flatten x =
 
 let copy x = 
   let s = shape x in
-  let res = Genarray.create float64 c_layout s in
-  Genarray.blit x res;
-  res
+  let f i = get x i in
+  init_nd s f
+
 let reverse x = 
   let l = Array.to_list x in
   let ll = List.rev l in
@@ -87,7 +90,7 @@ let mapi_nd f s =
           f index ele  in
   init_nd (shape s) fi   
 
-let sum' s =
+let sum_scalar s =
   let f = (+.) in
   fold_left f 0. s
 
@@ -102,23 +105,40 @@ let sequential ?(a=0.) ?(step=1.0) shape =
   let res_vec = genarray_of_array1 res_raw in
   reshape res_vec shape
 
+(* some creation functions *)
+let zeros shape = 
+  let res = Genarray.create float64 c_layout shape in
+  Genarray.fill res 0.;
+  res
+let ones shape = 
+  let res = Genarray.create float64 c_layout shape in
+  Genarray.fill res 1.;
+  res
+
+let zeros_like tensor = 
+  let s = shape tensor in
+  zeros s
+
+let ones_like tensor = 
+  let s = shape tensor in
+  ones s
+
 external c_reindex : base_t -> int array -> base_t = "c_reindex" 
 (*defination of the old fasion reindex *)
-let reindex input output_shape ~map_func = 
+let reindex_boost input output_shape ~map_func = 
   let map_func' index_i = 
     let index_nd = index_1d_nd index_i output_shape in
     let nd_res = map_func index_nd in
     index_nd_1d nd_res (shape input)
   in
   Callback.register "reindex_map_func" map_func';
-  Owl.Dense.Ndarray.Generic.print input; 
   let res = c_reindex input output_shape in
-  copy res;
+  copy res
 
 
 external c_reindex_reduce : base_t -> int array -> base_t = "c_reindex_reduce" 
 (*defination of the old fasion reindex-reduce *)
-let reindex_reduce input output_shape ~map_func = 
+let reindex_reduce_boost input output_shape ~map_func = 
   let map_func' index_i = 
     let index_nd = index_1d_nd index_i (shape input) in
     let nd_res = map_func index_nd in
@@ -131,28 +151,241 @@ let reindex_reduce input output_shape ~map_func =
 
 external c_element_wise_unary : base_t -> base_t = "c_element_wise_unary"
 (*defination of unary element-wise meta-operator*)
-let element_wise_unary input ~map_func =
+let element_wise_unary_boost input ~map_func =
   Callback.register "element_wise_unary_map_func" map_func;
   let res = c_element_wise_unary input in
   copy res
 
 external c_element_wise_binary : base_t -> base_t -> base_t = "c_element_wise_binary"
 (*defination of binary element-wise meta-operator*)
-let element_wise_binary input_1 input_2 ~map_func = 
+let element_wise_binary_boost input_1 input_2 ~map_func = 
   Callback.register "element_wise_binary_map_func" map_func;
   let res = c_element_wise_binary input_1 input_2 in
   copy res
 
 external c_element_wise_ternary : base_t -> base_t -> base_t -> base_t = "c_element_wise_ternary"
 (*defination of ternary element-wise meta-operator*)
-let element_wise_ternary input_1 input_2 input_3 ~map_func = 
+let element_wise_ternary_boost input_1 input_2 input_3 ~map_func = 
   Callback.register "element_wise_ternary_map_func" map_func;
   let res = c_element_wise_ternary input_1 input_2 input_3 in
   copy res
 
+(*defination of the old fasion reindex *)
+let reindex_caml input output_shape ~map_func = 
+  let f = function input_index -> get input (map_func input_index) in
+  init_nd output_shape f
+
+(*defination of the old fasion reindex-reduce *)
+let reindex_reduce_caml input output_shape ~map_func = 
+    let get_aux_tensor i = 
+        let aux_fun aux_index e = let new_index = map_func aux_index in 
+            if Stdlib.(=) new_index  i then e else 0.   in
+        mapi_nd aux_fun input in
+    let f = function input_index -> sum_scalar (get_aux_tensor input_index) in
+init_nd output_shape f
+
+(*defination of unary element-wise meta-operator*)
+let element_wise_unary_caml input ~map_func =
+    let output_shape = shape input in
+    let f = function index -> map_func (get input index) in
+init_nd output_shape f
+
+(*defination of binary element-wise meta-operator*)
+let element_wise_binary_caml input_1 input_2 ~map_func = 
+    let output_shape = shape input_1 in
+    let f = function index -> map_func (get input_1 index) (get input_2 index) in
+init_nd output_shape f
+
+(*defination of ternary element-wise meta-operator*)
+let element_wise_ternary_caml input_1 input_2 input_3 ~map_func = 
+    let output_shape = shape input_1 in
+    let f = function index -> map_func (get input_1 index) (get input_2 index) (get input_3 index) in
+init_nd output_shape f
 
 
-(*defination of print *)
+type meta_type = 
+  |CAML
+  |CBOOST
+
+let reindex ?(bt=CAML)=
+  match (bt) with
+  |CBOOST -> reindex_boost
+  |CAML -> reindex_caml
+;;
+
+let reindex_reduce ?(bt=CAML)= 
+  match (bt) with
+  |CBOOST -> reindex_reduce_boost
+  |CAML -> reindex_reduce_caml
+;;
+
+let element_wise_unary ?(bt=CAML)= 
+  match (bt) with
+  |CBOOST -> element_wise_unary_boost
+  |CAML -> element_wise_unary_caml
+;;
+
+let element_wise_binary ?(bt=CAML)= 
+  match (bt) with
+  |CBOOST -> element_wise_binary_boost
+  |CAML -> element_wise_binary_caml
+;;
+
+let element_wise_ternary ?(bt=CAML)= 
+  match (bt) with
+  |CBOOST -> element_wise_ternary_boost
+  |CAML -> element_wise_ternary_caml
+;;
+
+(*general unary function*)
+let abs ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.abs ~bt
+
+let neg ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.neg ~bt
+
+let floor ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.floor ~bt
+
+let sqr ?(bt=CAML) = 
+  let f x = x *. x in
+  element_wise_unary ~map_func:f ~bt
+
+let sqrt ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.sqrt ~bt
+
+let log ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.log ~bt
+
+let log2 ?(bt=CAML) = 
+  let f x = (Float.log x) /. (Float.log 2.) in
+  element_wise_unary ~map_func:f ~bt
+
+let log10 ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.log10 ~bt
+
+let exp ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.exp ~bt
+
+let cos ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.cos ~bt
+
+let sin ?(bt=CAML) = 
+  element_wise_unary ~map_func:Float.sin ~bt
+
+let tan ?(bt=CAML) = 
+  let f x = (Float.sin x) /. (Float.cos x) in
+  element_wise_unary ~map_func:f ~bt
+
+let sum ?(bt=CAML) ~axis input = 
+  let output_shape input_shape =
+        let aux_f_1 i =
+            let aux_i_f x = if (Stdlib.( >=) x axis) then Stdlib.(+) x  1 else x in
+            input_shape.(aux_i_f i) in
+    Array.init (Stdlib.(-) (Array.length input_shape) 1) aux_f_1 in
+    let out_shape = output_shape (shape input) in
+
+    let index_func input_index =
+        let aux_f_2 i =
+            let aux_i_n x = if (Stdlib.( >=) x axis) then Stdlib.(+) x  1 else x in
+            input_index.(aux_i_n i) in
+    Array.init ((Array.length input_index) - 1) aux_f_2 in
+    reindex_reduce input out_shape ~map_func:index_func ~bt:bt;;
+
+let sum' ?(bt=CAML) input = 
+  let f _index = [|0|] in
+  reindex_reduce input [|1|] ~map_func:f ~bt
+
+let reci_procal ?(bt=CAML) = 
+  let f x = 1. /. x in
+  element_wise_unary ~map_func:f  ~bt
+
+let sigmoid   ?(bt=CAML)= 
+  let f x = 
+    let neg = Float.neg x in
+    let exp = Float.exp neg in
+    let plu = exp +. 1. in
+    1. /. plu in
+  element_wise_unary ~map_func:f ~bt
+
+(*general basic binary functions*)
+let add  ?(bt=CAML)= 
+  element_wise_binary ~map_func:Float.add ~bt:bt
+
+let sub  ?(bt=CAML)= 
+  element_wise_binary ~map_func:Float.sub ~bt:bt
+
+let mul  ?(bt=CAML)= 
+  element_wise_binary ~map_func:Float.mul ~bt:bt
+
+let div ?(bt=CAML)= 
+  element_wise_binary ~map_func:Float.div ~bt:bt
+
+let add_scalar ?(bt=CAML) x y = 
+  let f a = a +. y in
+  element_wise_unary x ~map_func:f ~bt:bt
+
+let sub_scalar ?(bt=CAML) x y = 
+  let f a = a -. y in
+  element_wise_unary x ~map_func:f ~bt:bt
+
+let mul_scalar ?(bt=CAML) x y = 
+  let f a = a *. y in
+  element_wise_unary x ~map_func:f ~bt:bt
+
+let div_scalar ?(bt=CAML) x y = 
+  let f a = a /. y in
+  element_wise_unary x ~map_func:f ~bt:bt
+
+
+(* matrix operation *)
+let transpose ?(bt=CAML) x = 
+  let f index = [|index.(1);index.(0)|] in
+  reindex x (reverse (shape x)) ~map_func:f ~bt
+
+
+let broad_cast ?(bt=CAML) input target_shape oxis = 
+  let f input_index =
+    let aux_f i =
+      let aux_i_f x = if (x >= oxis) then x + 1 else x in
+    input_index.(aux_i_f i) in
+   Array.init ((Array.length input_index) - 1) aux_f in
+reindex input target_shape ~map_func:f ~bt:bt
+
+
+let dot ?(bt=CAML) x y = 
+  let shape_b = 
+    let shape_x = shape x in
+    let shape_y = shape y in
+    [|shape_x.(0);shape_x.(1);shape_y.(1)|] in
+  let x_bd = broad_cast x shape_b 2 in
+  let y_bd = broad_cast y shape_b 0 in
+  let raw_res = mul x_bd y_bd in
+  sum ~axis:1 ~bt raw_res 
+
+
+
+type boost_type = 
+  |AVX_BOOST
+  |FMA_BOOST
+  |OMP_BOOST
+  |DEFAULT
+external c_mat_mul : base_t -> base_t -> boost_type -> base_t  = "c_mat_mul"
+
+(*matrix operation*)
+let boost = ref DEFAULT
+let set_boost t =
+  boost:= t
+
+let mat_dot ?(bt=CAML) x y  = 
+  match !boost with
+  |DEFAULT -> dot x y ~bt
+  |_ -> copy (c_mat_mul x y !boost)
+
+
+
+
+(*misc *)
 let print_vec x =
   print_endline "";
   let n = numel x in 
@@ -198,36 +431,5 @@ let print ?(prefix = "") x =
   |3 -> print_cube x
   |_ -> raise (Shape_error "print:the shape is not supported")
 
+let printf = Printf.printf 
 
-
-(*defination of the old fasion reindex *)
-let reindex_caml input output_shape ~map_func = 
-  let f = function input_index -> get input (map_func input_index) in
-  init_nd output_shape f
-
-(*defination of the old fasion reindex-reduce *)
-let reindex_reduce_caml input output_shape ~map_func = 
-    let get_aux_tensor i = 
-        let aux_fun aux_index e = let new_index = map_func aux_index in 
-            if Stdlib.(=) new_index  i then e else 0.   in
-        mapi_nd aux_fun input in
-    let f = function input_index -> sum' (get_aux_tensor input_index) in
-init_nd output_shape f
-
-(*defination of unary element-wise meta-operator*)
-let element_wise_unary_caml input ~map_func =
-    let output_shape = shape input in
-    let f = function index -> map_func (get input index) in
-init_nd output_shape f;;
-
-(*defination of binary element-wise meta-operator*)
-let element_wise_binary_caml input_1 input_2 ~map_func = 
-    let output_shape = shape input_1 in
-    let f = function index -> map_func (get input_1 index) (get input_2 index) in
-init_nd output_shape f;;
-
-(*defination of ternary element-wise meta-operator*)
-let element_wise_ternary_caml input_1 input_2 input_3 ~map_func = 
-    let output_shape = shape input_1 in
-    let f = function index -> map_func (get input_1 index) (get input_2 index) (get input_3 index) in
-init_nd output_shape f;;
