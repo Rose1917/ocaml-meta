@@ -10,7 +10,7 @@
 #include "boost.h"
 
 #define BUFFER_SIZE 100000
-#define DEBUG
+//#define DEBUG
 
 
 
@@ -56,6 +56,22 @@ c_mat_mul (value x,value y, value z){
 		printf("the shape of right operand %d x %d",y_r,y_c);
 		exit(SHAPE_NOT_MATCH);
 	}
+	
+#ifdef DEBUG
+	//traverse the x
+	for ( int i = 0; i<x_r ; i++){
+		for (int j = 0;j<x_c;j++)
+			printf(" %f",x_val[i*x_c+j]);
+		printf ("\n");
+	}
+
+	//traverse the y
+	for ( int i = 0; i<y_r ; i++){
+		for (int j = 0;j<y_c;j++)
+			printf(" %f",y_val[i*y_c+j]);
+		printf ("\n");
+	}
+#endif
 
 	//so the result matrix shape is x_r * y_c
 	long  res_r = x_r;
@@ -64,7 +80,7 @@ c_mat_mul (value x,value y, value z){
 	//prepare for the result buffer
 	
 	//init the matrix c
-	memset(res,0,sizeof(double) * res_c * res_c);
+	memset(res,0,sizeof(double) * res_r * res_c);
 	
 
 	//obtain the boost type from the argument
@@ -74,27 +90,37 @@ c_mat_mul (value x,value y, value z){
 	switch ( boost_type ){
 		case AVX_BOOST:
 			#ifdef DEBUG
-			printf("BOOST TYPE:AVX");
+			printf("BOOST TYPE:AVX\n");
 			#endif
-			mul_avx(x_val,y_val,res,x_r,x_c,y_c);	
+			mul_avx(x_val,y_val,res,x_r,y_c,x_c);	
 			break;
 		case FMA_BOOST:
 			#ifdef DEBUG
-			printf("BOOST TYPE:FMA");
+			printf("BOOST TYPE:FMA\n");
 			#endif
-			mul_fma(x_val,y_val,res,x_r,x_c,y_c);	
+			mul_fma(x_val,y_val,res,x_r,y_c,x_c);	
 			break;
 		case OMP_BOOST:
 			#ifdef DEBUG
-			printf("BOOST TYPE:OMP");
+			printf("BOOST TYPE:OMP\n");
 			#endif
-			mul_omp(x_val,y_val,res,x_r,x_c,y_c);	
+			mul_omp(x_val,y_val,res,x_r,y_c,x_c);	
 			break;
 		default:
-			printf("c_mat_mul:the boost type is not specified.\n");
+			printf("c_mat_mul:the boost type is not recognized.\n");
 			printf("exit now.\n");
 			exit(BOOST_TYPE_NOT_SPECIFIED);
 	}
+		
+#ifdef DEBUG
+	//traverse the z
+	for ( int i = 0; i<res_r ; i++){
+		for (int j = 0;j<res_c;j++)
+			printf(" %f",y_val[i*res_c+j]);
+		printf ("\n");
+	}
+#endif
+
 
 	//call the function and if it works properly, we need to pack it to a bigarray so we can send it back
 	return caml_ba_alloc_dims(CAML_BA_FLOAT64|CAML_BA_C_LAYOUT,2,res,res_r,res_c);

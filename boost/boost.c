@@ -8,14 +8,14 @@
 #include <string.h>
 #include "common.h"
 
-#define DEBUG
+//#define DEBUG
 
 /* this file implement three kinds of mat-mul boost operation
  * 1) avx boost
  * 3) fma boost 
  */
 
-//transpose: A (p x n) -> A^(T)(n x p)
+//transpose: M (n x p) -> A^(T)(p x n)
 void T_Matrix(double *M,double *M_T,int n,int p)
 {
     #ifdef DEBUG
@@ -25,7 +25,7 @@ void T_Matrix(double *M,double *M_T,int n,int p)
     {
         for(int j = 0;j<p;j++)
         {
-            M_T[i*p+j] = M[j*n+i];
+            M_T[j*n+i] = M[i*p+j];
         }
     }
     #ifdef DEBUG
@@ -34,7 +34,7 @@ void T_Matrix(double *M,double *M_T,int n,int p)
 }
 
 //the matrix implementation based on the axv vector instruction
-//A(m x p) dot B(p x n) -> C(m x n)
+//A(m x n) dot B(n x p) -> C(m x p)
 void mul_avx(double *A,double *B,double *C,int m,int p,int n)
 {
     #ifdef DEBUG
@@ -59,7 +59,7 @@ void mul_avx(double *A,double *B,double *C,int m,int p,int n)
             tgt = _mm256_setzero_pd();
             for(int j = 0;j<n_reduced_4;j += 4)
             {
-                op0 = _mm256_loadu_pd(&A[i*p+j]);
+                op0 = _mm256_loadu_pd(&A[i*n+j]);
                 op1 = _mm256_loadu_pd(&B_T[k*p+j]);
                 tmp_vec = _mm256_mul_pd(op0,op1);
                 tgt = _mm256_add_pd(tmp_vec,tgt);
@@ -71,9 +71,9 @@ void mul_avx(double *A,double *B,double *C,int m,int p,int n)
             }
             for(int l = n_reduced_4;l<n;l++)
             {
-                res += A[i*p+l]*B_T[k*p+l];
+                res += A[i*n+l]*B_T[k*n+l];
             }
-            C[i*n+k] = res;
+            C[i*p+k] = res;
         }
         
     }
@@ -88,6 +88,7 @@ void mul_avx(double *A,double *B,double *C,int m,int p,int n)
 }
 
 //the matrix mul operation based on the fma vector instruction
+//m x n X n x p -> m x p
 void mul_fma(double *A,double *B,double *C,int m,int p,int n)
 {
     /*malloc for B transpose */
@@ -107,7 +108,7 @@ void mul_fma(double *A,double *B,double *C,int m,int p,int n)
             tgt = _mm256_setzero_pd();
             for(int j = 0;j<n_reduced_4;j += 4)
             {
-                op0 = _mm256_loadu_pd(&A[i*p+j]);
+                op0 = _mm256_loadu_pd(&A[i*n+j]);
                 op1 = _mm256_loadu_pd(&B_T[k*n+j]);
                 tgt = _mm256_fmadd_pd(op0,op1,tgt);
             }
@@ -118,9 +119,9 @@ void mul_fma(double *A,double *B,double *C,int m,int p,int n)
             }
             for(int l = n_reduced_4;l<n;l++)
             {
-                res += A[i*p+l]*B_T[k*p+l];
+                res += A[i*n+l]*B_T[k*n+l];
             }
-            C[i*n+k] = res;
+            C[i*p+k] = res;
         }
         
     }
@@ -138,7 +139,7 @@ void mul_omp(double *A,double *B,double *C,int m,int p,int n)
             for (int j = 0; j < m; j++)
             {
                 for (int k = 0; k < p; k++)
-		    C[j*n+k] += A[j*p+i] * B[i*n + k];
+		    C[j*p+k] += A[j*n+i] * B[i*p + k];
             }
         }
     }
