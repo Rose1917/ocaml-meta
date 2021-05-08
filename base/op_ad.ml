@@ -32,6 +32,9 @@ let sequential ?(if_grad=true) ?(a = 0.) ?(step = 1.0) shape =
   let x = sequential ~a ~step shape in
   pack ~if_grad:if_grad x
 
+let random ?(if_grad=true) ?(bound = 1.0) shape = 
+  let x = random ~bound shape in
+  pack ~if_grad x
 
 
 (*the basic ndarray operation*)
@@ -83,6 +86,47 @@ let div ?(bt=CAML)  x y =
     (r,x)::(s,y)::t in
   create base_val (zeros_like base_val) adj_fun
 
+let add_scalar ?(bt=CAML) x y = 
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = add_scalar !x' y ~bt in
+
+  let adj_fun ca t =
+    let r = Op_base.mul (Op_base.ones_like !x') !ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let sub_scalar ?(bt=CAML) x y = 
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = sub_scalar !x' y ~bt in
+
+  let adj_fun ca t =
+    let r = Op_base.mul (Op_base.ones_like !x') !ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let mul_scalar ?(bt=CAML) x y = 
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = mul_scalar !x' y ~bt in
+
+  let adj_fun ca t =
+    let r = Op_base.mul (Op_base.ns_like y !x') !ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let div_scalar ?(bt=CAML) x y = 
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = div_scalar !x' y ~bt in
+
+  let adj_fun ca t =
+    let r = Op_base.mul (reci_procal (Op_base.ones_like  !x') ~bt) !ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+
 let sin ?(bt=CAML) x = 
   (*calculate the primal value*)
   let x' = primal x in
@@ -123,7 +167,7 @@ let sum ?(bt=CAML) x =
     (r,x)::t in
   create base_val (zeros_like base_val) adj_fun
 
-
+(*some activation functions*)
 let sigmoid  ?(bt=CAML) x = 
   (*calculate the primal value*)
   let x' = primal x in
@@ -131,6 +175,36 @@ let sigmoid  ?(bt=CAML) x =
 
   let adj_fun ca t =
     let r = Op_base.mul (Op_base.mul base_val (Op_base.add_scalar (Op_base.neg (base_val) ~bt) 1. ~bt) ~bt) !ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let relu ?(bt=CAML) x =
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = relu !x' ~bt in
+
+  let adj_fun ca t = 
+    let r = Op_base.mul (base_val) !ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let tanh ?(bt=CAML) x =
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = tanh !x' ~bt in
+
+  let adj_fun ca t = 
+    let r = Op_base.mul (Op_base.add_scalar (Op_base.neg (Op_base.sqr base_val ~bt) ~bt) 1. ~bt)!ca ~bt in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let non_act ?(bt=CAML) x =
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = !x' in
+
+  let adj_fun ca t = 
+    let r = Op_base.mul (Op_base.ones_like base_val) !ca ~bt in
     (r,x)::t in
   create base_val (zeros_like base_val) adj_fun
 
@@ -178,10 +252,8 @@ let rec back_pro ?(bt=CAML) xs =
 
     let stack = adjfun aa t in
     back_pro stack 
-let diff f a b c d e g  = 
-  let z = f a b c d e g in
-  back_pro [((Op_base.ones_like !(deri z)),z)];
-  z
+let diff z = 
+  back_pro [((Op_base.ones_like !(deri z)),z)]
 
 let rec  update ?(bt=CAML) xs step =
   match xs with 

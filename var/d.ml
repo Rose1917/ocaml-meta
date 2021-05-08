@@ -1,4 +1,7 @@
 type base_t = Owl_dense_ndarray_d.arr
+type meta_type = 
+  |CAML
+  |CBOOST
 type var = {
   mutable base_val : base_t ref;
   mutable deri_val : base_t ref; 

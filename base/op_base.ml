@@ -1,3 +1,4 @@
+include Var.D
 open Bigarray
 
 exception Index_out_of_bound of string
@@ -105,6 +106,16 @@ let sequential ?(a=0.) ?(step=1.0) shape =
   let res_vec = genarray_of_array1 res_raw in
   reshape res_vec shape
 
+let random ?(bound = 1.) shape = 
+  Random.self_init ();
+  let n = numel_of_shape shape in
+  let res_raw = Array1.create float64 c_layout n in
+  for i = 1 to n - 1 do 
+    Array1.unsafe_set res_raw i (Random.float bound); 
+  done;
+  let res_vec = genarray_of_array1 res_raw in
+  reshape res_vec shape 
+
 (* some creation functions *)
 let zeros shape = 
   let res = Genarray.create float64 c_layout shape in
@@ -115,6 +126,11 @@ let ones shape =
   Genarray.fill res 1.;
   res
 
+let ns  x shape = 
+  let res = Genarray.create float64 c_layout shape in
+  Genarray.fill res x;
+  res
+
 let zeros_like tensor = 
   let s = shape tensor in
   zeros s
@@ -122,6 +138,10 @@ let zeros_like tensor =
 let ones_like tensor = 
   let s = shape tensor in
   ones s
+
+let ns_like x tensor = 
+  let s = shape tensor in
+  ns x s
 
 external c_reindex : base_t -> int array -> base_t = "c_reindex" 
 (*defination of the old fasion reindex *)
@@ -202,12 +222,7 @@ let element_wise_ternary_caml input_1 input_2 input_3 ~map_func =
     let f = function index -> map_func (get input_1 index) (get input_2 index) (get input_3 index) in
 init_nd output_shape f
 
-
-type meta_type = 
-  |CAML
-  |CBOOST
-
-let reindex ?(bt=CAML)=
+let reindex ?(bt=CAML)= 
   match (bt) with
   |CBOOST -> reindex_boost
   |CAML -> reindex_caml
@@ -300,6 +315,7 @@ let reci_procal ?(bt=CAML) =
   let f x = 1. /. x in
   element_wise_unary ~map_func:f  ~bt
 
+(*activation functions*)
 let sigmoid   ?(bt=CAML)= 
   let f x = 
     let neg = Float.neg x in
@@ -308,6 +324,22 @@ let sigmoid   ?(bt=CAML)=
     1. /. plu in
   element_wise_unary ~map_func:f ~bt
 
+let relu   ?(bt=CAML)= 
+  let f x = 
+    if x > 0. then x else 0. in
+  element_wise_unary ~map_func:f ~bt
+
+let tanh   ?(bt=CAML)= 
+  let f x = 
+    let ex = Float.exp x in
+    let e_neg_x = Float.exp (-.x) in
+    (ex -. e_neg_x) /. (ex +. e_neg_x) in
+  element_wise_unary ~map_func:f ~bt
+
+let non_act ?(bt=CAML) =
+  let f x =
+    x in
+  element_wise_unary ~map_func:f ~bt
 (*general basic binary functions*)
 let add  ?(bt=CAML)= 
   element_wise_binary ~map_func:Float.add ~bt:bt
