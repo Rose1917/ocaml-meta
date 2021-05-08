@@ -8,32 +8,45 @@
 #include <string.h>
 #include "common.h"
 
+#define DEBUG
+
 /* this file implement three kinds of mat-mul boost operation
  * 1) avx boost
- * 2) omp boost
  * 3) fma boost 
  */
 
-//transpose: A -> A^(T)
+//transpose: A (p x n) -> A^(T)(n x p)
 void T_Matrix(double *M,double *M_T,int n,int p)
 {
+    #ifdef DEBUG
+	printf("in T_Matrix\n");
+    #endif
     for(int i = 0;i<n;i++)
     {
         for(int j = 0;j<p;j++)
         {
-            M_T[j*p+i] = M[i*n+j];
+            M_T[i*p+j] = M[j*n+i];
         }
     }
+    #ifdef DEBUG
+	printf("in T_Matrix:end\n");
+    #endif
 }
 
 //the matrix implementation based on the axv vector instruction
 //A(m x p) dot B(p x n) -> C(m x n)
 void mul_avx(double *A,double *B,double *C,int m,int p,int n)
 {
+    #ifdef DEBUG
+	printf("in mul avx init\n");
+    #endif
     double *B_T;
     B_T  = (double*)malloc(p*n*sizeof(double*));
 
     T_Matrix(B,B_T,n,p);//得到B的转置矩阵
+    #ifdef DEBUG
+	printf("after transpose\n");
+    #endif
 
     const int n_reduced_4 = n - n % 4;
     __m256d op0,op1,tgt,tmp_vec;
@@ -64,7 +77,14 @@ void mul_avx(double *A,double *B,double *C,int m,int p,int n)
         }
         
     }
+    #ifdef DEBUG
+	printf("in mul avx before free\n");
+    #endif
+
     free(B_T);
+    #ifdef DEBUG
+	printf("in mul avx after free\n");
+    #endif
 }
 
 //the matrix mul operation based on the fma vector instruction

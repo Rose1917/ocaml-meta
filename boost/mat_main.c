@@ -10,7 +10,7 @@
 #include "boost.h"
 
 #define BUFFER_SIZE 100000
-//#define DEBUG
+#define DEBUG
 
 
 
@@ -64,7 +64,7 @@ c_mat_mul (value x,value y, value z){
 	//prepare for the result buffer
 	
 	//init the matrix c
-	//memset(res,0,sizeof(double) * res_c * res_c);
+	memset(res,0,sizeof(double) * res_c * res_c);
 	
 
 	//obtain the boost type from the argument

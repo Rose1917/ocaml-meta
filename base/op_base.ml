@@ -390,9 +390,9 @@ let dot ?(bt=CAML) x y =
     let shape_x = shape x in
     let shape_y = shape y in
     [|shape_x.(0);shape_x.(1);shape_y.(1)|] in
-  let x_bd = broad_cast x shape_b 2 in
-  let y_bd = broad_cast y shape_b 0 in
-  let raw_res = mul x_bd y_bd in
+  let x_bd = broad_cast x shape_b 2 ~bt in
+  let y_bd = broad_cast y shape_b 0 ~bt in
+  let raw_res = mul x_bd y_bd ~bt in
   sum ~axis:1 ~bt raw_res 
 
 
