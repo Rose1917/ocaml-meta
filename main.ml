@@ -1,9 +1,9 @@
 (* define the boost type. by default it will not boost*)
 open Nn.Full
-open Base.Op_ad
+open Op.Op_ad
 let _ = 
   (*set the boost : OMP_BOOST FMA_BOOST AVX_BOOST*)
-  set_boost AVX_BOOST;
+  set_boost DEFAULT;
   
   let layer_1 = 
       {

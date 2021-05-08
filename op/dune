@@ -1,0 +1,6 @@
+(library 
+	(name op)
+	(inline_tests)
+	(libraries var boost)
+	(preprocess (pps ppx_inline_test))
+)

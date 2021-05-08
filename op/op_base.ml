@@ -12,6 +12,9 @@ exception Shape_error of string
 (*define the basic type*)
 type base_t = (float,float64_elt,c_layout)Bigarray.Genarray.t
 
+let add_one x = x + 1
+let%test _= add_one 1 = 3
+
 let shape (x:base_t) = 
   Genarray.dims x 
 
