@@ -12,8 +12,6 @@ exception Shape_error of string
 (*define the basic type*)
 type base_t = (float,float64_elt,c_layout)Bigarray.Genarray.t
 
-let add_one x = x + 1
-let%test _= add_one 1 = 3
 
 let shape (x:base_t) = 
   Genarray.dims x 
@@ -145,6 +143,29 @@ let ones_like tensor =
 let ns_like x tensor = 
   let s = shape tensor in
   ns x s
+
+let compare_array x_d y_d = 
+  let x_l = Array.length x_d in
+  let y_l = Array.length y_d in
+  if x_l != y_l then false else
+        let y_cp = Array.copy y_d in 
+        let f i e = if x_d.(i) == e then y_cp.(i) <- 1 else y_cp.(i) <- 0 in
+        Array.iteri f y_cp;
+        let res_int = Array.fold_left ( * ) 1 y_cp  in
+        res_int == 1
+let%test _ = compare_array [|2;3;4|] [|3;4;5|] = false
+let%test _ = compare_array [|2;3;4;5|] [|2;3;4|] = false
+let%test _ = compare_array [|2;3;4|] [|2;3;4|] = true
+let%test _ = compare_array [|2;3;4|] [|2;3;4;5|] = false
+
+let compare_shape x y = 
+  let x_d = shape x in
+  let y_d = shape y in
+  compare_array x_d y_d
+
+let%test _ = compare_shape (sequential [|3;4|]) (sequential [|3;4;5|]) = false
+let%test _ = compare_shape (sequential [|3;4|]) (sequential [|3;4|]) = true
+let%test _ = compare_shape (random [|3;4|]) (sequential [|3;4|]) = true
 
 external c_reindex : base_t -> int array -> base_t = "c_reindex" 
 (*defination of the old fasion reindex *)
