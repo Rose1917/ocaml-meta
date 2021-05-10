@@ -6,7 +6,6 @@ exception Shape_error of string
 
 (* the creation operator*)
  
-
 (*this file implement the basic ndarray and the function of it which is like numpy*)
 
 (*define the basic type*)
@@ -33,13 +32,14 @@ let numel x =
   let arr = shape x in
   numel_of_shape arr 
 
-let flatten x = 
-  reshape x [|(numel x);|]
-
 let copy x = 
   let s = shape x in
   let f i = get x i in
   init_nd s f
+
+let flatten x = 
+  let x_copy = copy x in
+  reshape x_copy [|(numel x);|]
 
 let reverse x = 
   let l = Array.to_list x in
@@ -117,6 +117,67 @@ let random ?(bound = 1.) shape =
   let res_vec = genarray_of_array1 res_raw in
   reshape res_vec shape 
 
+let compare_array x_d y_d = 
+  let x_l = Array.length x_d in
+  let y_l = Array.length y_d in
+  if x_l != y_l then false else
+        let y_cp = Array.copy y_d in 
+        let f i e = if x_d.(i) == e then y_cp.(i) <- 1 else y_cp.(i) <- 0 in
+        Array.iteri f y_cp;
+        let res_int = Array.fold_left ( * ) 1 y_cp  in
+        res_int == 1
+let%test _ = compare_array [|2;3;4|] [|3;4;5|] = false
+let%test _ = compare_array [|2;3;4;5|] [|2;3;4|] = false
+let%test _ = compare_array [|2;3;4|] [|2;3;4|] = true
+let%test _ = compare_array [|2;3;4|] [|2;3;4;5|] = false
+
+let compare_shape x y = 
+  let x_d = shape x in
+  let y_d = shape y in
+  compare_array x_d y_d
+
+let%test _ = compare_shape (sequential [|3;4|]) (sequential [|3;4;5|]) = false
+let%test _ = compare_shape (sequential [|3;4|]) (sequential [|3;4|]) = true
+let%test _ = compare_shape (random [|3;4|]) (sequential [|3;4|]) = true
+
+let compare x y = 
+  let shape_cmp_res = compare_shape x y in
+  if shape_cmp_res = false then false else 
+    let x_flat = flatten x in
+    let y_flat = flatten y in
+    let n = numel x in
+    let res = ref true in
+    for i = 0 to n - 1 do
+      let x_ele = get x_flat [|i;|] in
+      let y_ele = get y_flat [|i;|] in
+      res := (!res) && (x_ele = y_ele);
+    done;
+    !res
+
+let%test _ = compare (sequential [|3;4|]) (sequential [|3;4;5|]) = false
+let%test _ = compare (sequential [|3;4|]) (sequential [|3;4|]) = true
+let%test _ = compare (random [|3;4|]) (sequential [|3;4|]) = false
+let%test _ = compare (random [|3;4|]) (random [|3;4|]) = false
+
+
+(*from a float list list to base_t*)
+let of_list l= 
+  let flat_l = List.flatten l in
+  let n = List.length flat_l in
+  let dim1 = List.length l in
+  let dim2 = n  / dim1 in
+  let res_raw = Genarray.create float64 c_layout [|n|] in
+  for i = 0 to n - 1 do
+    Genarray.set res_raw [|i|] (List.nth flat_l i)
+  done;
+  reshape res_raw [|dim1;dim2|]
+
+let%test _ = compare (of_list [[0.;1.;2.];[3.;4.;5.]] ) (sequential [|2;3|]) = true
+let%test _ = compare (of_list [[0.;1.;3.];[3.;4.;5.]] ) (sequential [|2;3|]) = false
+let%test _ = compare (of_list [[0.;2.;2.];[3.;4.;5.]] ) (sequential [|2;3|]) = false
+
+
+
 (* some creation functions *)
 let zeros shape = 
   let res = Genarray.create float64 c_layout shape in
@@ -143,29 +204,6 @@ let ones_like tensor =
 let ns_like x tensor = 
   let s = shape tensor in
   ns x s
-
-let compare_array x_d y_d = 
-  let x_l = Array.length x_d in
-  let y_l = Array.length y_d in
-  if x_l != y_l then false else
-        let y_cp = Array.copy y_d in 
-        let f i e = if x_d.(i) == e then y_cp.(i) <- 1 else y_cp.(i) <- 0 in
-        Array.iteri f y_cp;
-        let res_int = Array.fold_left ( * ) 1 y_cp  in
-        res_int == 1
-let%test _ = compare_array [|2;3;4|] [|3;4;5|] = false
-let%test _ = compare_array [|2;3;4;5|] [|2;3;4|] = false
-let%test _ = compare_array [|2;3;4|] [|2;3;4|] = true
-let%test _ = compare_array [|2;3;4|] [|2;3;4;5|] = false
-
-let compare_shape x y = 
-  let x_d = shape x in
-  let y_d = shape y in
-  compare_array x_d y_d
-
-let%test _ = compare_shape (sequential [|3;4|]) (sequential [|3;4;5|]) = false
-let%test _ = compare_shape (sequential [|3;4|]) (sequential [|3;4|]) = true
-let%test _ = compare_shape (random [|3;4|]) (sequential [|3;4|]) = true
 
 external c_reindex : base_t -> int array -> base_t = "c_reindex" 
 (*defination of the old fasion reindex *)
@@ -408,6 +446,17 @@ let broad_cast ?(bt=CAML) input target_shape oxis =
    Array.init ((Array.length input_index) - 1) aux_f in
 reindex input target_shape ~map_func:f ~bt:bt
 
+(* can be used as the example*)
+(* slice a tensor by passing a tuple list*)
+let  slice tensor slice_index = 
+  let out_shape = Array.init (Array.length slice_index) (fun x -> Util.Misc.second slice_index.(x)) in 
+  let map_func idx = Array.init (Array.length idx) (fun x -> x + idx.(x)) in
+  reindex tensor out_shape ~map_func
+
+
+
+let%test _ = compare (slice (zeros [|4;4;4|]) [|(0,2);(0,2);(0,2)|]) (zeros [|2;2;2|]) = true
+let%test _ = compare (slice (zeros [|4;4|]) [|(0,2);(0,2)|]) (ones [|2;2|]) = false
 
 let dot ?(bt=CAML) x y = 
   let shape_b = 
