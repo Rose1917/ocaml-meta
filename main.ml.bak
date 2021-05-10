@@ -1,0 +1,79 @@
+(* define the boost type. by default it will not boost*)
+open Nn.Full
+open Op.Op_ad
+
+
+
+let _ = 
+  (*set the boost : OMP_BOOST FMA_BOOST AVX_BOOST*)
+  (*Owl.Dataset.download_all();*)
+  set_boost OMP_BOOST;  
+  let layer_1 = liner 300 784 sigmoid in
+  let layer_2 = liner 10 300 sigmoid in
+  let test_network = init_net [|layer_1;layer_2|] in
+
+  (*the neural network defination*)
+
+  (*prepare for the neural network arguments,since we do not need the d(loss)/d(input),so we set the if_grad = false*)
+  (*for convinence,we set the arguments sequentially*)
+
+  (*iterate to train,every diff function will do a forward propogation and backward propogation*)
+  (*train function will do a update according to the gradient set before by diff function*)
+
+  let train_set,_,train_label = Owl.Dataset.load_mnist_train_data() in 
+  let train_set = train_set |> Op.Op_base.from32 in
+  let train_label = train_label |> Op.Op_base.from32 in
+  let step = 0.01 in
+  let cycles = 60000 in
+  Printf.printf "train iteration begin,cycles %d ,step %f\n" cycles step;
+  Stdlib.print_endline "iteration begin";
+  for it = 0 to cycles - 1 do
+    let input = pack (Op.Op_base.transpose (Op.Op_base.sub_left train_set it 1)) ~if_grad:false in
+    let target = pack (Op.Op_base.transpose (Op.Op_base.sub_left train_label it 1)) in
+    
+    let z =  run_net input test_network in
+    let loss = sum (sqr (sub z target)) in
+    diff loss;
+
+    let loss_float = get_ele loss [|0|] in
+    Printf.printf "iteration %d,loss %g\n" it loss_float;
+    train z step;
+  done ;
+
+  let mean_loss = ref 0. in
+  let cycles = 10000 in
+  let test_set,_,test_label = Owl.Dataset.load_mnist_test_data () in
+  let test_set = test_set |> Op.Op_base.from32 in
+  let test_label = test_label |> Op.Op_base.from32 in
+  Printf.printf "test iteration begin,cycles %d\n" cycles;
+  Stdlib.print_endline "iteration begin";
+  for it = 1 to cycles do
+    let input = pack (Op.Op_base.transpose (Op.Op_base.sub_left test_set it 1)) ~if_grad:false in
+    let target = pack (Op.Op_base.transpose (Op.Op_base.sub_left test_label it 1)) in
+    
+    let z =  run_net input test_network in
+    let loss = sum (sqr (sub z target)) in
+    let loss_float = get_ele loss [|0|] in
+    mean_loss := !mean_loss +. loss_float;
+    Printf.printf "iteration %d,loss %g\n" it loss_float;
+  done; 
+  
+  
+  Printf.printf "test iteration over,cycles %d\n" cycles;
+  Printf.printf "the mean loss is  %g\n" (!mean_loss /. Float.of_int(cycles));
+  (*
+  let sqr_res = (sqr (sub (sigmoid (add b2 (mat_mul w2 (sigmoid (add (mat_mul w1 input) b1))))) target))in
+  print sqr_res;
+  let sum_res = sum sqr_res in
+  print sum_res;
+  let loss_res = get_ele sum_res [|0|] in
+  Printf.printf "the loss %f \n" loss_res;
+     *)
+  (*
+  let x = sequential ~a:(-1.) [|3;3|] in
+  let y = sqr x in
+  print x;
+  print y;
+     *)
+
+

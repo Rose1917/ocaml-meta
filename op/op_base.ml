@@ -11,23 +11,28 @@ exception Shape_error of string
 (*define the basic type*)
 type base_t = (float,float64_elt,c_layout)Bigarray.Genarray.t
 
-
-let shape (x:base_t) = 
+let shape x = 
   Genarray.dims x 
 
 let num_dims x = 
   Genarray.num_dims x
  
-let get (x:base_t) index = 
+let get x index = 
   Genarray.get x index
 
 let init_nd output_shape f = 
   Genarray.init float64 c_layout output_shape f
 
+let from32 x = 
+  let f index =
+    get x index in
+  init_nd (shape x) f 
+
 let numel_of_shape shape =
   let f x y = x * y in
   Array.fold_left f 1 shape
-
+let reshape = 
+  Bigarray.reshape
 let numel x = 
   let arr = shape x in
   numel_of_shape arr 
@@ -457,6 +462,16 @@ let  slice tensor slice_index =
 
 let%test _ = compare (slice (zeros [|4;4;4|]) [|(0,2);(0,2);(0,2)|]) (zeros [|2;2;2|]) = true
 let%test _ = compare (slice (zeros [|4;4|]) [|(0,2);(0,2)|]) (ones [|2;2|]) = false
+
+let sub_left ?(bt=CAML) tensor ofs len =
+  let s = shape tensor in
+  let out_shape = Array.init (Array.length s) (fun x -> match x with |0 -> len |_ -> s.(x)) in
+  let map_func index = Array.init (Array.length index) (fun x -> match x with |0 -> (index.(0) + ofs)|_ -> index.(x) )in
+  reindex tensor out_shape ~map_func ~bt
+
+
+let%test _ = compare (Genarray.sub_left (sequential [|4;4;4|]) 0 2) (sub_left (sequential [|4;4;4|]) 0 2) = true
+
 
 let dot ?(bt=CAML) x y = 
   let shape_b = 

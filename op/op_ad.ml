@@ -236,9 +236,9 @@ let print_endline x =
   Stdlib.print_endline x
 
 
-let print x = 
-  print (!(primal x));
-  print (!(deri x))
+let print ?(prefix="") x = 
+  print (!(primal x)) ~prefix;
+  print (!(deri x)) ~prefix
 
 let rec back_pro ?(bt=CAML) xs = 
   match xs with 
