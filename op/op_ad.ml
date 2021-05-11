@@ -25,6 +25,8 @@ let unpack ad_tensor =
   primal ad_tensor
 (*the basic creation operator*)
 
+  
+
 
 open Op_base
 (*create functions*)
@@ -36,6 +38,17 @@ let random ?(if_grad=true) ?(bound = 1.0) shape =
   let x = random ~bound shape in
   pack ~if_grad x
 
+let zeros ?(if_grad=true) shape = 
+  let x = zeros shape in
+  pack ~if_grad x
+
+let ones ?(if_grad=true) shape = 
+  let x = ones shape in
+  pack ~if_grad x
+
+let ns ?(if_grad=true) n  shape = 
+  let x = ns n shape in
+  pack ~if_grad x
 
 (*the basic ndarray operation*)
 let add ?(bt=CAML) x y = 
@@ -198,6 +211,32 @@ let tanh ?(bt=CAML) x =
     (r,x)::t in
   create base_val (zeros_like base_val) adj_fun
 
+let softmax ?(bt=CAML) x =
+  (*calculate the primal value*)
+  let x' = primal x in
+  let base_val = softmax !x' ~bt in
+
+  let adj_fun ca t = 
+    let x_val = Util.Misc.non_zero (Op_base.to_arr !ca) in
+    let x_inx = Util.Misc.non_zeroi (Op_base.to_arr !ca) in
+    let f index = 
+      if index.(0) = x_inx then (x_val *. (get base_val index) *. (1. -. (get base_val index)))
+      else -.(x_val *. (get base_val [|x_inx;0|]) *. (get base_val index)) in
+    let r = Op_base.init_nd (shape !x') f in
+    (r,x)::t in
+  create base_val (zeros_like base_val) adj_fun
+
+let cross_entry ?(bt=CAML) pre target =
+  let pre' = primal pre in
+  let tar' = primal target in
+  let base_val = cross_entry !pre' !tar' in
+
+  let adj_fun ca t = 
+    let s = get !ca [|0|] in
+    let r = Op_base.mul_scalar (Op_base.mul (neg !tar' ~bt) (reci_procal !pre' ~bt)) s ~bt in
+    (r,pre)::t in
+  create base_val (zeros_like base_val) adj_fun
+
 let non_act ?(bt=CAML) x =
   (*calculate the primal value*)
   let x' = primal x in
@@ -207,6 +246,8 @@ let non_act ?(bt=CAML) x =
     let r = Op_base.mul (Op_base.ones_like base_val) !ca ~bt in
     (r,x)::t in
   create base_val (zeros_like base_val) adj_fun
+
+
 
 let mat_mul ?(bt=CAML) x y= 
   let x' = primal x in
@@ -226,19 +267,19 @@ let get_ele x index=
 let get_grad x index = 
   get (!(deri x)) index
 
-let print_primal x = 
-  print (!(primal x))
+let print_primal ?(prefix="") x = 
+  print (!(primal x)) ~prefix:("primal "^prefix)
 
-let print_grad x = 
-  print (!(deri x))
+let print_grad ?(prefix="") x = 
+  print (!(deri x)) ~prefix:("deri "^prefix)
 
 let print_endline x =
   Stdlib.print_endline x
 
 
 let print ?(prefix="") x = 
-  print (!(primal x)) ~prefix;
-  print (!(deri x)) ~prefix
+  print_primal x ~prefix;
+  print_grad x ~prefix
 
 let rec back_pro ?(bt=CAML) xs = 
   match xs with 

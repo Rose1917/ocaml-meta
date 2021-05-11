@@ -9,12 +9,12 @@
 #include "common.h"
 #include "boost.h"
 
-#define BUFFER_SIZE 100000
+#define BUFFER_SIZE 1000000
 //#define DEBUG
 
 
 
-double res[100000];
+double res[BUFFER_SIZE];
 
 //matrix operation
 CAMLprim value 
@@ -78,6 +78,10 @@ c_mat_mul (value x,value y, value z){
 	long  res_c = y_c;
 
 	//prepare for the result buffer
+	if(res_r * res_c > BUFFER_SIZE) {
+		printf ("c mat_mul:buffer is not enough");
+		exit(BUFFER_OVERFLOW);
+	}
 	
 	//init the matrix c
 	memset(res,0,sizeof(double) * res_r * res_c);

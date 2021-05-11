@@ -181,7 +181,13 @@ let%test _ = compare (of_list [[0.;1.;2.];[3.;4.;5.]] ) (sequential [|2;3|]) = t
 let%test _ = compare (of_list [[0.;1.;3.];[3.;4.;5.]] ) (sequential [|2;3|]) = false
 let%test _ = compare (of_list [[0.;2.;2.];[3.;4.;5.]] ) (sequential [|2;3|]) = false
 
-
+let to_arr x = 
+  let flat_x = flatten x in
+  let n      = numel x in
+  let res =  Array.init n (fun x -> (get flat_x [|x|])) in
+  res
+  
+let%test _ = to_arr (sequential [|2;2|]) = [|0.;1.;2.;3.|]
 
 (* some creation functions *)
 let zeros shape = 
@@ -382,31 +388,6 @@ let reci_procal ?(bt=CAML) =
   let f x = 1. /. x in
   element_wise_unary ~map_func:f  ~bt
 
-(*activation functions*)
-let sigmoid   ?(bt=CAML)= 
-  let f x = 
-    let neg = Float.neg x in
-    let exp = Float.exp neg in
-    let plu = exp +. 1. in
-    1. /. plu in
-  element_wise_unary ~map_func:f ~bt
-
-let relu   ?(bt=CAML)= 
-  let f x = 
-    if x > 0. then x else 0. in
-  element_wise_unary ~map_func:f ~bt
-
-let tanh   ?(bt=CAML)= 
-  let f x = 
-    let ex = Float.exp x in
-    let e_neg_x = Float.exp (-.x) in
-    (ex -. e_neg_x) /. (ex +. e_neg_x) in
-  element_wise_unary ~map_func:f ~bt
-
-let non_act ?(bt=CAML) =
-  let f x =
-    x in
-  element_wise_unary ~map_func:f ~bt
 (*general basic binary functions*)
 let add  ?(bt=CAML)= 
   element_wise_binary ~map_func:Float.add ~bt:bt
@@ -436,6 +417,44 @@ let div_scalar ?(bt=CAML) x y =
   let f a = a /. y in
   element_wise_unary x ~map_func:f ~bt:bt
 
+(*activation functions*)
+let sigmoid   ?(bt=CAML)= 
+  let f x = 
+    let neg = Float.neg x in
+    let exp = Float.exp neg in
+    let plu = exp +. 1. in
+    1. /. plu in
+  element_wise_unary ~map_func:f ~bt
+
+let relu   ?(bt=CAML)= 
+  let f x = 
+    if x > 0. then x else 0. in
+  element_wise_unary ~map_func:f ~bt
+
+let tanh   ?(bt=CAML)= 
+  let f x = 
+    let ex = Float.exp x in
+    let e_neg_x = Float.exp (-.x) in
+    (ex -. e_neg_x) /. (ex +. e_neg_x) in
+  element_wise_unary ~map_func:f ~bt
+
+let softmax ?(bt=CAML) tensor= 
+  let ex = exp tensor ~bt in
+  let sigma = sum_scalar ex in
+  div_scalar ex sigma ~bt
+
+
+
+let non_act ?(bt=CAML) =
+  let f x =
+    x in
+  element_wise_unary ~map_func:f ~bt
+
+(*loss function*)
+let cross_entry  ?(bt=CAML) pre target =
+  let ln_res = log pre in
+  let mul_r  = mul target ln_res ~bt in
+  mul_r |> sum' |> neg
 
 (* matrix operation *)
 let transpose ?(bt=CAML) x = 
@@ -455,7 +474,7 @@ reindex input target_shape ~map_func:f ~bt:bt
 (* slice a tensor by passing a tuple list*)
 let  slice tensor slice_index = 
   let out_shape = Array.init (Array.length slice_index) (fun x -> Util.Misc.second slice_index.(x)) in 
-  let map_func idx = Array.init (Array.length idx) (fun x -> x + idx.(x)) in
+  let map_func idx = Array.init (Array.length idx) (fun x -> (Util.Misc.first slice_index.(x)) + idx.(x)) in
   reindex tensor out_shape ~map_func
 
 
@@ -553,3 +572,4 @@ let print ?(prefix = "") x =
 
 let printf = Printf.printf 
 
+let%test _ = print (softmax (ones [|2;2|])); compare (softmax (ones [|2;2|])) (ns 0.25 [|2;2|]) = true

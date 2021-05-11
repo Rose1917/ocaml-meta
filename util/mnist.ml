@@ -5,6 +5,11 @@ let train_label_path = "/home/march1917/recent/dataset/train-labels-idx1-ubyte"
 let test_image_path  = "/home/march1917/recent/dataset/t10k-images-idx3-ubyte"
 let test_label_path  = "/home/march1917/recent/dataset/t10k-labels-idx1-ubyte"
 
+(*some global variable*)
+let train_epoc = 60000
+let test_epoc  = 10000
+let pixel_num  = 28*28
+
 (*to load the train iamge and label*)
 let load_train_images () = 
   let res = Bigarray.Genarray.create (Bigarray.float64) (Bigarray.c_layout) [|60000;784|] in
@@ -18,7 +23,7 @@ let load_train_images () =
     for it_x = 0 to 60000 - 1 do
         for it_y = 0 to 784 - 1 do 
                 let pixel = input_byte oi in
-                Bigarray.Genarray.set res [|it_x;it_y|] (Float.of_int pixel);
+                Bigarray.Genarray.set res [|it_x;it_y|] ((Float.of_int pixel)/.256.);
         done
     done;
     close_in oi;
@@ -54,8 +59,8 @@ let load_train_labels_hot () =
     for it_x = 0 to 60000 - 1 do
         let pixel = input_byte oi in
         for it_y = 0 to 10 - 1 do 
-          if (it_y = pixel) then Bigarray.Genarray.set res [|it_x;it_y|] 0.
-          else Bigarray.Genarray.set res [|it_x;it_y|] 1.
+          if (it_y = pixel) then Bigarray.Genarray.set res [|it_x;it_y|] 1.
+          else Bigarray.Genarray.set res [|it_x;it_y|] 0.
         done
     done;
     close_in oi;
@@ -80,7 +85,7 @@ let load_test_images () =
     for it_x = 0 to 10000 - 1 do
         for it_y = 0 to 784 - 1 do 
                 let pixel = input_byte oi in
-                Bigarray.Genarray.set res [|it_x;it_y|] (Float.of_int pixel);
+                Bigarray.Genarray.set res [|it_x;it_y|] ((Float.of_int pixel)/.256.);
         done
     done;
     close_in oi;
@@ -116,8 +121,8 @@ let load_test_labels_hot () =
     for it_x = 0 to 10000 - 1 do
         let pixel = input_byte oi in
         for it_y = 0 to 10 - 1 do 
-          if (it_y = pixel) then Bigarray.Genarray.set res [|it_x;it_y|] 0.
-          else Bigarray.Genarray.set res [|it_x;it_y|] 1.
+          if (it_y = pixel) then Bigarray.Genarray.set res [|it_x;it_y|] 1.
+          else Bigarray.Genarray.set res [|it_x;it_y|] 0.
         done
     done;
     close_in oi;
@@ -130,6 +135,7 @@ let load_test_data () =
   (load_test_images(),load_test_labels(),load_test_labels_hot())
 (*draw the image *)
 let draw_image x = 
+  let x = Bigarray.reshape x [|28;28|] in
   let s = Bigarray.Genarray.dims x in
   let r = s.(0) in
   let c = s.(1) in

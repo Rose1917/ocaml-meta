@@ -4,8 +4,8 @@ include Op.Op_base
 open Op.Op_ad
 let liner  w_r w_c act =
 { 
-    w = random [|w_r;w_c|];
-    b = random [|w_r;1|];
+    w = random  [|w_r;w_c|] ~bound:0.1;
+    b = random [|w_r;1|] ~bound:0.1;
     acv = act;
 }
 
