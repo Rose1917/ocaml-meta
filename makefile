@@ -6,4 +6,4 @@ clean:
 test:
 	dune runtest
 count:
-	find -path ./_build -prune  -o -name '*.ml' -print|tr '\n' ' '|xargs wc -l
+	find -path ./_build -prune  -o \( -name '*.ml' -o -name '*.c' -o -name '*.h' \) -print|tr '\n' ' '|xargs wc -l
