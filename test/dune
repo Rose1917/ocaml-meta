@@ -1,6 +1,6 @@
 (library 
-	(name op)
+	(name test)
 	(inline_tests)
-	(libraries var boost util lwt)
+	(libraries var boost util op)
 	(preprocess (pps ppx_inline_test))
 )

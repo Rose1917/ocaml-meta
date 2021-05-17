@@ -1,4 +1,4 @@
-type base_t = Owl_dense_ndarray_d.arr
+type base_t = (float,Bigarray.float64_elt,Bigarray.c_layout) Bigarray.Genarray.t 
 type meta_type = 
   |CAML
   |CBOOST

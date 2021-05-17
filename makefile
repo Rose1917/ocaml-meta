@@ -1,6 +1,7 @@
-.PHONY: test
+epoch=1
+.PHONY: test gen
 main:
-	dune exec ./main.exe
+	dune exec ./main.exe ${epoch}
 clean:
 	dune clean
 test:

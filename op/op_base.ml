@@ -529,7 +529,7 @@ let print_vec x =
   print_endline "";
   let n = numel x in 
   for i = 0 to n - 1 do
-    Printf.printf " %g" (get x [|i|]);
+    Printf.printf " %3g" (get x [|i|]);
   done;
   print_endline ""
 
@@ -540,7 +540,7 @@ let print_mat x =
   let c = s.(1) in
   for i = 0 to r - 1 do
     for j = 0 to c - 1 do
-      Printf.printf " %g" (get x [|i;j|]);
+      Printf.printf " %3g" (get x [|i;j|]);
     done;
     print_endline "";
   done
@@ -572,4 +572,4 @@ let print ?(prefix = "") x =
 
 let printf = Printf.printf 
 
-let%test _ = print (softmax (ones [|2;2|])); compare (softmax (ones [|2;2|])) (ns 0.25 [|2;2|]) = true
+let%test _ =  compare (softmax (ones [|2;2|])) (ns 0.25 [|2;2|]) = true

@@ -5,9 +5,10 @@ let _ =
   (*set the boost : OMP_BOOST FMA_BOOST AVX_BOOST*)
   set_boost OMP_BOOST;
   
-  let layer_1 = liner 10 1 relu in
-  let layer_2 = liner 1 10 non_act in
-  let test_network = init_net [|layer_1;layer_2|] in
+  let layer_1 = liner 20 1 relu in
+  let layer_2 = liner 70 20 relu in
+  let layer_3 = liner 1 70 non_act in
+  let test_network = init_net [|layer_1;layer_2;layer_3|] in
 
   (*the neural network defination*)
 

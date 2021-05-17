@@ -264,6 +264,9 @@ let mat_mul ?(bt=CAML) x y=
 let get_ele x index= 
   get (!(primal x)) index
 
+let max_i x = 
+  x|>primal |>(!)|>Op_base.to_arr|>Util.Misc.max_i
+
 let get_grad x index = 
   get (!(deri x)) index
 
