@@ -1,4 +1,4 @@
-## a deep learning framework based on the owl and meta-operator
+## a deep learning framework based on meta-operator
 #### how to start 
 make 
 #### contribution 
