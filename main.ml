@@ -47,6 +47,8 @@ let _ =
     let input = pack (reshape (slice test_set [|(it,1);(0,784)|]) [|(28*28);1|]) ~if_grad:false in
     let target = pack (reshape (slice test_label [|(it,1);(0,10)|]) [|10;1|])  in 
     let z =  run_net input test_network in
+    draw_image(input|> unpack |> (!));
+    Printf.printf "the res is %d" (max_i target);
     match_cnt:= !match_cnt + (if_match target z);
   done; 
   let _a = Printf.printf "%d matched the accuray is %g\n" !match_cnt ((Float.of_int !match_cnt)/. 100.) in

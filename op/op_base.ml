@@ -215,7 +215,9 @@ let ones_like tensor =
 let ns_like x tensor = 
   let s = shape tensor in
   ns x s
-
+(*C: buffer    [100000]*)
+(* res -> buffer*)
+(* res_1 *)
 external c_reindex : base_t -> int array -> base_t = "c_reindex" 
 (*defination of the old fasion reindex *)
 let reindex_boost input output_shape ~map_func = 
@@ -284,10 +286,15 @@ let element_wise_unary_caml input ~map_func =
 init_nd output_shape f
 
 (*defination of binary element-wise meta-operator*)
+(*float -> float -> float*)
+(* Float.add*)
+(* index -> float *)
+(* init_nd *)
 let element_wise_binary_caml input_1 input_2 ~map_func = 
     let output_shape = shape input_1 in
     let f = function index -> map_func (get input_1 index) (get input_2 index) in
 init_nd output_shape f
+(* init_nd [|2;2|] f*) 
 
 (*defination of ternary element-wise meta-operator*)
 let element_wise_ternary_caml input_1 input_2 input_3 ~map_func = 
