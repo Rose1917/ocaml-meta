@@ -101,6 +101,53 @@ let sum_scalar s =
   let f = (+.) in
   fold_left f 0. s
 
+let average_scalar s = 
+  let n = s |> numel |> Float.of_int in
+  let v = sum_scalar s in
+  v /. n
+
+let max_i x =
+  let x = flatten x in
+  let n = numel x in
+  let max_index = ref (0) in
+  let max_ele   = ref (Float.min_float) in
+  for it = 0 to n - 1 do
+    if ((Genarray.get x [|it|]) > !max_ele) then (max_ele := (Genarray.get x [|it|]);max_index := it)
+  done;
+  !max_index
+
+let max x =
+  let x = flatten x in
+  let n = numel x in
+  let max_index = ref (-1) in
+  let max_ele   = ref (Float.min_float) in
+  for it = 0 to n - 1 do
+    if ((Genarray.get x [|it|]) > !max_ele) then (max_ele := (Genarray.get x [|it|]);max_index := it)
+  done;
+  !max_ele
+
+let min_i x =
+  let x = flatten x in
+  let n = numel x in
+  let min_index = ref (-1) in
+  let min_ele   = ref (Float.max_float) in
+  for it = 0 to n - 1 do
+    if ((Genarray.get x [|it|]) < !min_ele) then (min_ele := (Genarray.get x [|it|]);min_index := it)
+  done;
+  !min_index
+
+
+let min x =
+  let x = flatten x in
+  let n = numel x in
+  let min_index = ref (-1) in
+  let min_ele   = ref (Float.max_float) in
+  for it = 0 to n - 1 do
+    if ((Genarray.get x [|it|]) < !min_ele) then (min_ele := (Genarray.get x [|it|]);min_index := it)
+  done;
+  !min_ele
+
+
 let sequential ?(a=0.) ?(step=1.0) shape =
   let v = ref a in
   let n = numel_of_shape shape in
@@ -291,6 +338,10 @@ init_nd output_shape f
 (* index -> float *)
 (* init_nd *)
 let element_wise_binary_caml input_1 input_2 ~map_func = 
+  let s_1 = shape input_1 in
+  let s_2 = shape input_2 in
+  if s_1 <> s_2 then raise (Shape_error "element_wise_binary: shape not matched")
+  else
     let output_shape = shape input_1 in
     let f = function index -> map_func (get input_1 index) (get input_2 index) in
 init_nd output_shape f
@@ -463,11 +514,59 @@ let cross_entry  ?(bt=CAML) pre target =
   let mul_r  = mul target ln_res ~bt in
   mul_r |> sum' |> neg
 
-(* matrix operation *)
+(* matrix diagonal transpose *)
 let transpose ?(bt=CAML) x = 
   let f index = [|index.(1);index.(0)|] in
   reindex x (reverse (shape x)) ~map_func:f ~bt
 
+(* matrix subdiagonal transpose *)
+(* i -> m - 1 - j *)
+(* j -> n - 1 - i *)
+let sub_transpose ?(bt=CAML) x =
+  let s = shape x in
+  let m = s.(0) in
+  let n = s.(1) in
+  let f index = 
+    [|m-1-index.(1);n-1-index.(0)|] in
+  reindex x (reverse s) ~map_func:f ~bt
+
+(* reverse the element *)
+let rev ?(bt=CAML) x = 
+  x |> transpose ~bt|> sub_transpose ~bt
+
+(* insert zero accroding to the stride *)
+let insert_zero ?(_bt=CAML) x stride=
+  let p = stride - 1 in
+  let s = shape x in
+  let m = s.(0) in
+  let n = s.(1) in
+  let r = m + (m-1)*p in
+  let c = n + (n-1)*p in
+  let f index = 
+    let a = index.(0) in
+    let b = index.(1) in
+    if (a mod stride != 0) || (b mod stride != 0) then 0. 
+    else (Genarray.get x [|a/stride;b/stride|]) in
+  init_nd [|r;c|] f
+
+(* merge a genarray array to a one-more dimentsion genarray *)
+let merge ?(_bt=CAML) arr =
+  let l = Array.length arr in
+  let sub_shape = arr.(0) |> shape in
+  let f i =
+    if i == 0 then l else sub_shape.(i-1) in
+  let s = Array.init ((sub_shape |> Array.length)+1) f in
+  let f index =
+    let sub_arr = arr.(index.(0)) in
+    let sub_index = Array.init ((index|>Array.length)-1) (fun x -> index.(x+1)) in
+    Genarray.get sub_arr sub_index in
+init_nd s f 
+
+(* split a genarray into a one-less dimension array *)
+let split ?(_bt=CAML) tensor = 
+  let s = tensor |> shape in
+  let n = s.(0) in
+  Array.init n (fun x -> (Genarray.slice_left tensor [|x|]))
 
 let broad_cast ?(bt=CAML) input target_shape oxis = 
   let f input_index =
@@ -484,20 +583,168 @@ let  slice tensor slice_index =
   let map_func idx = Array.init (Array.length idx) (fun x -> (Util.Misc.first slice_index.(x)) + idx.(x)) in
   reindex tensor out_shape ~map_func
 
-
-
-let%test _ = compare (slice (zeros [|4;4;4|]) [|(0,2);(0,2);(0,2)|]) (zeros [|2;2;2|]) = true
-let%test _ = compare (slice (zeros [|4;4|]) [|(0,2);(0,2)|]) (ones [|2;2|]) = false
-
 let sub_left ?(bt=CAML) tensor ofs len =
   let s = shape tensor in
   let out_shape = Array.init (Array.length s) (fun x -> match x with |0 -> len |_ -> s.(x)) in
   let map_func index = Array.init (Array.length index) (fun x -> match x with |0 -> (index.(0) + ofs)|_ -> index.(x) )in
   reindex tensor out_shape ~map_func ~bt
 
+let pad_2d ?(constant=0.) tensor pd = 
+  if pd == 0 then copy tensor
+  else
+          let s   = shape tensor in
+          let r_t = s.(0) in
+          let c_t = s.(1) in
+          let new_s = Array.map (fun x -> x + pd + pd) s in
+          let f index = 
+            let r = index.(0) in
+            let c = index.(1) in
+            if (r >= pd && r < r_t+pd)&&(c >= pd && c < c_t + pd) then get tensor [|r-pd;c-pd|]
+            else constant
+          in init_nd new_s f
 
-let%test _ = compare (Genarray.sub_left (sequential [|4;4;4|]) 0 2) (sub_left (sequential [|4;4;4|]) 0 2) = true
+let pad_3d ?(constant=0.) tensor pd = 
+  if pd == 0 then copy tensor
+  else
+          let s = shape tensor in
+          let new_s = [|s.(0);s.(1)+2*pd;s.(2)+2*pd|] in
+          let f index = 
+            let d = index.(0) in
+            let r = index.(1) in
+            let c = index.(2) in
+            if (r >= pd && r < s.(1)+pd)&&(c >= pd && c < s.(2) + pd) then get tensor [|d;r-pd;c-pd|]
+            else constant
+          in init_nd new_s f
 
+let dot_sum ?(bt=CAML) x y =
+  let mul_res = mul x y ~bt in
+  sum_scalar mul_res
+
+(* neural network operation *)
+(* convolution without bias and bias*)
+let conv2d ?(bt=CAML) ?(stride=1) ?(pd=0) tensor filter= 
+  let tensor = pad_2d tensor pd in
+  let shape_t = shape tensor in
+  let r_t = shape_t.(0) in
+  let c_t = shape_t.(1) in
+  let shape_f = shape filter in
+  let r_f = shape_f.(0) in
+  let c_f = shape_f.(1) in
+  let r = (r_t - r_f)/stride + 1 in
+  let c = (c_t - c_f)/stride + 1 in
+  let f index =
+    [|stride*index.(0)+index.(2);stride*index.(1)+index.(3)|] in
+  let xx = reindex tensor [|r;c;r_f;c_f|] ~map_func:f in
+  let f index = 
+    [|index.(2);index.(3)|] in
+  let yy = reindex filter [|r;c;r_f;c_f|] ~map_func:f ~bt in
+  let mul_res = mul xx yy in
+  let f index = 
+    [|index.(0);index.(1)|] in
+  reindex_reduce mul_res [|r;c|] ~map_func:f ~bt
+ 
+(* 3d convolution without bias and activation function*)
+let conv3d ?(bt=CAML) ?(stride=1) ?(pd=0) tensor filter=
+  let shape_t = shape tensor in
+  let len_t   = shape_t.(0) in
+  let f i = 
+    let tensor_t = Genarray.slice_left tensor [|i|] in
+    let filter_t = Genarray.slice_left filter [|i|] in
+    conv2d tensor_t filter_t ~stride ~bt ~pd in
+  let res_arr = Array.init len_t f in
+  let init_val = zeros_like res_arr.(0) in
+  Array.fold_left add init_val res_arr 
+
+(*the layer operation of conv*)
+let layer_conv3d_caml ?(bt=CAML) ?(stride=1) ?(pd=0) tensor filters= 
+  let shape_f = shape filters in
+  let filter_n = shape_f.(0) in
+  let f i =
+    let sub_filter = Genarray.slice_left filters [|i|] in
+    conv3d tensor sub_filter ~stride ~bt ~pd in
+  let res_arr = Array.init filter_n f in
+  let f index = 
+    let t = res_arr.(index.(0)) in
+    Genarray.get t [|index.(1);index.(2)|] in
+  let w = (res_arr.(0)|>shape).(0) in
+  let h = (res_arr.(0)|>shape).(1) in
+  init_nd [|filter_n;w;h|] f
+
+(* boost type: the layer operation of conv *)
+external c_layer_conv3d : base_t -> base_t -> int -> base_t  = "c_layer_conv3d"
+let layer_conv3d_boost x y stride =
+  copy (c_layer_conv3d x y stride)
+
+(* the general api of conv3d *)
+let layer_conv3d = layer_conv3d_boost
+
+let max_pool2d ?(bt=CAML) ?(stride=1) tensor max_filter =
+  let shape_t = shape tensor in
+  let r_t = shape_t.(0) in
+  let c_t = shape_t.(1) in
+  let r_f = max_filter.(0) in
+  let c_f = max_filter.(1) in
+  let r   = (r_t - r_f)/stride + 1 in
+  let c   = (c_t - c_f)/stride + 1 in
+  let f index =
+    [|stride * index.(0) + index.(2);stride * index.(1) + index.(3)|] in
+  let xx = reindex tensor[|r;c;r_f;c_f|] ~map_func:f ~bt in
+  let f index =
+    let sub_tensor = slice xx [|(index.(0),1);(index.(1),1);(0,r_f);(0,c_f)|] in
+    let sub_index  = max_i sub_tensor in
+    let sub_array  = index_1d_nd sub_index [|r_f;c_f|] in
+    let res_index  = [|index.(0);index.(1);sub_array.(0);sub_array.(1)|] in
+        res_index in
+  let res = reindex xx [|r;c|] ~map_func:f ~bt in
+  res
+  
+let avg_pool2d ?(bt=CAML) ?(stride=1) tensor avg_filter = 
+  let shape_t = shape tensor in
+  let r_t = shape_t.(0) in
+  let c_t = shape_t.(1) in
+  let r_f = avg_filter.(0) in
+  let c_f = avg_filter.(1) in
+  let r   = (r_t - r_f)/stride + 1 in
+  let c   = (c_t - c_f)/stride + 1 in
+  let f index =
+    [|stride * index.(0) + index.(2);stride * index.(1) + index.(3)|] in
+  let xx = reindex tensor[|r;c;r_f;c_f|] ~map_func:f ~bt in
+  let f index =
+    let sub_tensor = slice xx [|(index.(0),1);(index.(1),1);(0,r_f);(0,c_f)|] in
+    average_scalar sub_tensor in
+  let res = init_nd [|r;c|] f in
+  res
+
+let avg_pool3d ?(bt=CAML) ?(stride=1) tensor avg_filter =
+  let shape_t = shape tensor in
+  let len     = shape_t.(0)  in 
+  let f index = 
+    let sub_tensor = Genarray.slice_left tensor [|index|] in
+    avg_pool2d sub_tensor avg_filter ~bt ~stride in
+  let res_arr = Array.init len f in
+  let res_r   = (res_arr.(0)|>shape).(0) in
+  let res_c   = (res_arr.(0)|>shape).(1) in
+  let f index =
+    Genarray.get res_arr.(index.(0)) [|index.(1);index.(2)|] in
+  let res = init_nd [|len;res_r;res_c|] f in
+  res
+
+let max_pool3d ?(bt=CAML) ?(stride=1) tensor max_filter =
+  let shape_t = shape tensor in
+  let len     = shape_t.(0)  in 
+  let f index = 
+    let sub_tensor = Genarray.slice_left tensor [|index|] in
+    max_pool2d sub_tensor max_filter ~bt ~stride in
+  let res_arr = Array.init len f in
+  let res_r   = (res_arr.(0)|>shape).(0) in
+  let res_c   = (res_arr.(0)|>shape).(1) in
+  let f index =
+    Genarray.get res_arr.(index.(0)) [|index.(1);index.(2)|] in
+  let res = init_nd [|len;res_r;res_c|] f in
+  res
+
+let flatten_conv tensor = 
+  Bigarray.reshape tensor [|numel tensor;1|]
 
 let dot ?(bt=CAML) x y = 
   let shape_b = 
@@ -523,10 +770,6 @@ let boost = ref DEFAULT
 let set_boost t =
   boost:= t
 
-let mat_dot ?(bt=CAML) x y  = 
-  match !boost with
-  |DEFAULT -> dot x y ~bt
-  |_ -> copy (c_mat_mul x y !boost)
 
 
 
@@ -568,6 +811,25 @@ let print_cube x_t =
     print_endline "";
   done
 
+let print_4d x_t =
+  print_endline "";
+  let s = shape x_t in
+  let o = s.(0) in
+  let p = s.(1) in
+  let q = s.(2) in
+  let r = s.(3) in
+  for a = 0 to o - 1 do
+    for b = 0 to p - 1 do
+      for c = 0 to q - 1 do
+        for d = 0 to r - 1 do
+          Printf.printf " %g" (get x_t [|a;b;c;d|]);
+        done;
+      print_endline "";
+      done;
+    print_endline "";
+    done;
+  print_endline "";
+  done
 let print ?(prefix = "") x = 
   if (String.length prefix) = 0 then () else Printf.printf " %s" prefix;
   let dims = num_dims x in
@@ -575,8 +837,31 @@ let print ?(prefix = "") x =
   |1 -> print_vec x 
   |2 -> print_mat x
   |3 -> print_cube x
+  |4 -> print_4d x
   |_ -> raise (Shape_error "print:the shape is not supported")
+
+let print_shape ?(prefix="") x=
+  print_endline prefix;
+  let s = shape x in
+  let n = Array.length s in
+  for i = 0 to n - 1 do
+    Printf.printf "%d " s.(i)
+  done;
+  print_endline "";
+  ()
+
 
 let printf = Printf.printf 
 
-let%test _ =  compare (softmax (ones [|2;2|])) (ns 0.25 [|2;2|]) = true
+let mat_dot ?(bt=CAML) x y  = 
+  match !boost with
+  |DEFAULT -> dot x y ~bt
+  |_ -> copy (c_mat_mul x y !boost)
+
+(* let%test _ =  compare (softmax (ones [|2;2|])) (ns 0.25 [|2;2|]) = true *)
+(* let%test _ = print (conv2d (ones [|4;4|]) (ones [|2;2|]) ~stride:2 ~pd:1);false *)
+(* let%test _ = print (conv3d (ones [|3;4;4|]) (ones [|3;2;2|]) ~stride:2 ~pd:1);false *)
+(* let%test _ = print (layer_conv3d (ones [|3;4;4|]) (ones [|4;3;2;2|]) ~stride:2 ~pd:0);false *)
+(* let%test _ = print (max_pool2d (sequential [|4;4|])  [|2;2|] ~stride:1);false *)
+(* let%test _ = print (sequential [|3;4;4|]);false *)
+(* let%test _ = print (max_pool3d (sequential [|3;4;4|])  [|2;2|] ~stride:1);false *)

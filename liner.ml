@@ -53,19 +53,3 @@ let _ =
   
   Printf.printf "test iteration over,cycles %d\n" cycles;
   Printf.printf "the mean loss is  %g\n" (!mean_loss /. Float.of_int(cycles));
-  (*
-  let sqr_res = (sqr (sub (sigmoid (add b2 (mat_mul w2 (sigmoid (add (mat_mul w1 input) b1))))) target))in
-  print sqr_res;
-  let sum_res = sum sqr_res in
-  print sum_res;
-  let loss_res = get_ele sum_res [|0|] in
-  Printf.printf "the loss %f \n" loss_res;
-     *)
-  (*
-  let x = sequential ~a:(-1.) [|3;3|] in
-  let y = sqr x in
-  print x;
-  print y;
-     *)
-
-

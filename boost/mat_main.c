@@ -19,6 +19,10 @@ double res[BUFFER_SIZE];
 //matrix operation
 CAMLprim value 
 c_mat_mul (value x,value y, value z){
+
+#ifdef DEBUG
+	printf("now in the c_mat_mul function\n");
+#endif
 	
 	//obtain the data from value type
 	double* x_val = Caml_ba_data_val(x);
@@ -38,6 +42,9 @@ c_mat_mul (value x,value y, value z){
 		exit(DIMENSION_NOT_QUALIFIED);
 	}
 
+#ifdef DEBUG
+	printf("first judgement\n");
+#endif
 	//define the shape of the two matrix
 	int x_r,x_c;
 	int y_r,y_c;
@@ -55,8 +62,8 @@ c_mat_mul (value x,value y, value z){
 		printf("the shape of left operand %d x %d",x_r,x_c);
 		printf("the shape of right operand %d x %d",y_r,y_c);
 		exit(SHAPE_NOT_MATCH);
-	}
-	
+	}	
+
 #ifdef DEBUG
 	//traverse the x
 	for ( int i = 0; i<x_r ; i++){
