@@ -22,29 +22,29 @@ let _ =
   (* let layer_7 = ref (liner 10 84 softmax) in *)
   (* let test_network = init_net [|Conv !layer_1;Pool !layer_2;Conv !layer_3;Pool !layer_4; Conv !layer_5;Connect;Full !layer_6;Full !layer_7|] in *)
 
-  let test_network = Nn.Net_marshal.load_net  "/home/march1917/recent/permanent/conv_network" in
-  (* train the model*)
-  let train_set,_,train_label = Util.Mnist.load_train_data() in
-  let step = 0.01 in
-  let _cycles = Util.Mnist.train_epoc in
-  for _it = 20000 to 30000 - 1 do
-        (* Printf.printf "iteration %d\n" it; *)
-        (* flush_all(); *)
-        let input  = pack(reshape (slice train_set [|(_it,1);(0,784)|]) [|1;28;28|]) ~if_grad:false in
-        let target = pack (reshape (slice train_label [|(_it,1);(0,10)|]) [|10;1|]) in
-        let output = run_net input test_network in
+  (* let test_network = Nn.Net_marshal.load_net  "/home/march1917/recent/permanent/conv_network" in*)
+  (* (* train the model*)*)
+  (* let train_set,_,train_label = Util.Mnist.load_train_data() in*)
+  (* let step = 0.01 in*)
+  (* let _cycles = Util.Mnist.train_epoc in*)
+  (* for _it = 50000 to 60000 - 1 do*)
+  (*       (* Printf.printf "iteration %d\n" it; *)*)
+  (*       (* flush_all(); *)*)
+  (*       let input  = pack(reshape (slice train_set [|(_it,1);(0,784)|]) [|1;28;28|]) ~if_grad:false in*)
+  (*       let target = pack (reshape (slice train_label [|(_it,1);(0,10)|]) [|10;1|]) in*)
+  (*       let output = run_net input test_network in*)
 
-        Util.Mnist.draw_image !(primal input);
-        print output;
-        Printf.printf "the prediction is %d\n" (max_i output);
+  (*       Util.Mnist.draw_image !(primal input);*)
+  (*       print output;*)
+  (*       Printf.printf "the prediction is %d\n" (max_i output);*)
 
-        let loss   = cross_entry output target in
-        diff loss;
-        train loss step;
-   done;
-   
-   Nn.Net_marshal.save_net test_network "/home/march1917/recent/permanent/conv_network";
-   let test_network = Nn.Net_marshal.load_net  "/home/march1917/recent/permanent/conv_network" in
+  (*       let loss   = cross_entry output target in*)
+  (*       diff loss;*)
+  (*       train loss step;*)
+  (*  done;*)
+  (*  Nn.Net_marshal.save_net test_network "/home/march1917/recent/permanent/conv_network";*)
+
+   let test_network = Nn.Net_marshal.load_net  "./permanent/conv_network" in
 
   (* test the model *)
   let match_cnt = ref 0 in 
@@ -52,7 +52,7 @@ let _ =
   let test_set,_,test_label = load_test_data () in 
   Printf.printf "test iteration begin,cycles %d\n" _cycles; 
   Stdlib.print_endline "iteration begin"; 
-  for it = 0 to 1000 - 1 do 
+  for it = 0 to 10000 - 1 do 
     let input = pack (reshape (slice test_set [|(it,1);(0,784)|]) [|1;28;28|]) ~if_grad:false  in 
     let target = pack (reshape (slice test_label [|(it,1);(0,10)|]) [|10;1|])  in  
     let z =  run_net input test_network in 
@@ -60,5 +60,5 @@ let _ =
     (* Printf.printf "the res is %d\n" (max_i target); *) 
     match_cnt:= !match_cnt + (if_match target z); 
   done;  
-  let _a = Printf.printf "%d matched the accuray is %g%%\n" !match_cnt ((Float.of_int !match_cnt)/. 10.) in 
+  let _a = Printf.printf "%d matched the accuray is %g%%\n" !match_cnt ((Float.of_int !match_cnt)/. 100.) in 
   () 
