@@ -13,3 +13,12 @@
 (*   print y ; *) 
 (*   print !z ; *) 
 (*   true *) 
+open Op.Op_base
+let %test "cuda_mat" =
+        let x = sequential [|10;10|] in
+        let y = sequential [|10;10|] in
+        let z = cuda_mat_mul x y in
+        print x;
+        print y;
+        print z;
+        false

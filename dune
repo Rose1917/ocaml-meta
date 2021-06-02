@@ -1,4 +1,5 @@
 (executable
 	(name main)
-	(libraries meta var nn boost op util owl))
+	(libraries meta var nn boost op util owl)
+)
 

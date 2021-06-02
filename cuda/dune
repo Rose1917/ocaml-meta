@@ -1,0 +1,14 @@
+(data_only_dirs libcuda)
+(rule
+ (deps (source_tree libcuda))
+ (targets libcuda.a libcuda.so)
+ (action
+ (no-infer
+  (progn
+   (chdir libcuda (run make))
+   (copy libcuda/libcuda.a libcuda.a)
+   (copy libcuda/libcuda.so libcuda.so)))))
+
+(library 
+(name cudaa)
+(foreign_archives cuda))

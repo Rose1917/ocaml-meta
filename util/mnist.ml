@@ -1,9 +1,9 @@
 
 (*the mnist file path*)
-let train_image_path = "/home/march1917/recent/dataset/train-images-idx3-ubyte"
-let train_label_path = "/home/march1917/recent/dataset/train-labels-idx1-ubyte"
-let test_image_path  = "/home/march1917/recent/dataset/t10k-images-idx3-ubyte"
-let test_label_path  = "/home/march1917/recent/dataset/t10k-labels-idx1-ubyte"
+let train_image_path = "dataset/train-images-idx3-ubyte"
+let train_label_path = "dataset/train-labels-idx1-ubyte"
+let test_image_path  = "dataset/t10k-images-idx3-ubyte"
+let test_label_path  = "dataset/t10k-labels-idx1-ubyte"
 
 (*some global variable*)
 let train_epoc = 60000
